@@ -37,6 +37,13 @@ export async function insert_order(data: { userId: string; status: string }) {
         userId,
         status,
         total: 0,
+        paymentMethod: "Pay on Delivery",
+        paymentStatus:
+          status === "done"
+            ? "done"
+            : status === "cancelled"
+              ? "cancelled"
+              : "pending",
       },
       include: {
         user: true,

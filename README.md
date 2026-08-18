@@ -10,9 +10,13 @@ orders, analytics, and audit records.
 
 ## Screenshots
 
-### Home and Menu
+### Home
 
 ![Home page](docs/screenshots/home.png)
+
+### Menu
+
+![Restaurant menu](docs/screenshots/menu.png)
 
 ### Shopping Cart
 
@@ -33,6 +37,9 @@ orders, analytics, and audit records.
 - Food search and filtering
 - Shopping cart
 - Quantity management
+- Compact cash-on-delivery checkout
+- Payment status tracking
+- Damaged, spoiled, or unsafe food reporting and refund requests
 - Checkout and delivery information
 - Order creation
 - Order status tracking
@@ -46,6 +53,7 @@ orders, analytics, and audit records.
 - Inventory management
 - Order management
 - Order item management
+- Food quality issue review and refund approval
 - Analytics dashboard
 - Operations dashboard
 - Audit logs

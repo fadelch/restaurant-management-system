@@ -52,6 +52,27 @@ export const orderStatusSchema = z.enum([
   "cancelled",
 ]);
 
+export const paymentStatusSchema = z.enum([
+  "pending",
+  "done",
+  "cancelled",
+  "refunded",
+]);
+
+export const foodIssueReasonSchema = z.enum([
+  "damaged",
+  "spoiled",
+  "foreign_object",
+  "wrong_item",
+  "other",
+]);
+
+export const foodIssueStatusSchema = z.enum([
+  "pending",
+  "approved",
+  "rejected",
+]);
+
 export const pageOptionsSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(5).max(100).default(10),

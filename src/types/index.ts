@@ -51,6 +51,8 @@ export type Order = {
   fulfillmentType?: string;
   paymentMethod?: string | null;
   paymentCode?: string | null;
+  paymentStatus?: string;
+  refundedAmount?: number;
   customerAddress?: string | null;
   mapLocation?: string | null;
   orderNotes?: string | null;
@@ -58,6 +60,7 @@ export type Order = {
   createdAt?: string | Date;
   user?: User | null;
   items?: OrderItem[];
+  issueReports?: FoodIssueReport[];
 };
 
 export type OrderItem = {
@@ -72,4 +75,23 @@ export type OrderItem = {
   customizationNote?: string | null;
   order?: Order | null;
   food?: FoodItem | null;
+  issueReports?: FoodIssueReport[];
+};
+
+export type FoodIssueReport = {
+  id: string;
+  orderId: string;
+  orderItemId: number;
+  userId: string;
+  reason: string;
+  details: string;
+  quantity: number;
+  status: string;
+  refundAmount: number;
+  createdAt: string | Date;
+  updatedAt: string | Date;
+  resolvedAt?: string | Date | null;
+  order?: Order;
+  orderItem?: OrderItem;
+  user?: User;
 };

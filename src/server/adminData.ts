@@ -304,6 +304,7 @@ export async function getOrdersPage(input: PageInput = {}, finished = false) {
     : ["pending", "preparing"];
   const where = {
     AND: [
+      finished ? { adminArchivedAt: null } : {},
       {
         status: {
           in: options.filter !== "all" ? [options.filter] : statuses,
@@ -349,7 +350,7 @@ export async function getOrdersPage(input: PageInput = {}, finished = false) {
   )
     ? options.sort
     : "createdAt";
-  const [items, total] = await Promise.all([
+  const [items, total, archivedTotal] = await Promise.all([
     prisma.order.findMany({
       where,
       include: { user: true, items: { include: { food: true } } },
@@ -358,6 +359,17 @@ export async function getOrdersPage(input: PageInput = {}, finished = false) {
       take: options.pageSize,
     }),
     prisma.order.count({ where }),
+    finished
+      ? prisma.order.count({
+          where: {
+            adminArchivedAt: { not: null },
+            status: {
+              in: statuses,
+              mode: "insensitive",
+            },
+          },
+        })
+      : Promise.resolve(0),
   ]);
   return {
     items,
@@ -365,7 +377,55 @@ export async function getOrdersPage(input: PageInput = {}, finished = false) {
     page: options.page,
     pageSize: options.pageSize,
     pages: Math.max(1, Math.ceil(total / options.pageSize)),
+    archivedTotal,
   };
+}
+
+export async function clearFinishedOrders() {
+  const actor = await requireAdmin();
+  const archivedAt = new Date();
+  const result = await prisma.order.updateMany({
+    where: {
+      adminArchivedAt: null,
+      status: {
+        in: ["done", "completed", "cancelled", "canceled"],
+        mode: "insensitive",
+      },
+    },
+    data: { adminArchivedAt: archivedAt },
+  });
+
+  await writeAuditLog(actor, {
+    action: "CLEAR_FINISHED_ORDERS",
+    entityType: "Order",
+    entityId: "finished-list",
+    changes: { archivedCount: result.count, archivedAt },
+  });
+
+  return { count: result.count };
+}
+
+export async function restoreFinishedOrders() {
+  const actor = await requireAdmin();
+  const result = await prisma.order.updateMany({
+    where: {
+      adminArchivedAt: { not: null },
+      status: {
+        in: ["done", "completed", "cancelled", "canceled"],
+        mode: "insensitive",
+      },
+    },
+    data: { adminArchivedAt: null },
+  });
+
+  await writeAuditLog(actor, {
+    action: "RESTORE_FINISHED_ORDERS",
+    entityType: "Order",
+    entityId: "finished-list",
+    changes: { restoredCount: result.count },
+  });
+
+  return { count: result.count };
 }
 
 const adjustmentSchema = z.object({

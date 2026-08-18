@@ -12,6 +12,7 @@ export async function getCheckoutSettings() {
       select: {
         id: true,
         name: true,
+        description: true,
         deliveryFee: true,
         minimumOrder: true,
         estimatedMinutes: true,

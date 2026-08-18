@@ -2,8 +2,13 @@
 
 import { useCallback, useEffect, useState } from "react";
 import AnimatedSection from "@/components/AnimatedSection";
-import { getOrdersPage } from "@/server/adminData";
+import {
+  clearFinishedOrders,
+  getOrdersPage,
+  restoreFinishedOrders,
+} from "@/server/adminData";
 import AdminPageControls from "@/components/AdminPageControls";
+import { showMessage } from "@/components/MessageProvider";
 import { formatUsdWithLbp } from "@/lib/currency";
 import type { OrderItem } from "@/types";
 import { normalizeOptionalIngredients } from "@/lib/foodOptions";
@@ -33,6 +38,9 @@ export default function OrderItemsTable() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [pages, setPages] = useState(1);
+  const [finishedCount, setFinishedCount] = useState(0);
+  const [archivedCount, setArchivedCount] = useState(0);
+  const [changingArchive, setChangingArchive] = useState(false);
   const [query, setQuery] = useState<{
     page: number;
     pageSize: number;
@@ -73,6 +81,8 @@ export default function OrderItemsTable() {
 
       setItems((finishedItems as FinishedOrderItem[]) || []);
       setPages(result.pages);
+      setFinishedCount(result.total);
+      setArchivedCount(result.archivedTotal);
     } catch (err) {
       setError(
         err instanceof Error
@@ -88,17 +98,82 @@ export default function OrderItemsTable() {
     return () => clearTimeout(timer);
   }, [fetchOrderItems]);
 
+  const clearList = async () => {
+    const confirmed = window.confirm(
+      "Clear all finished order items from this admin list? Order history, refunds, analytics, and food safety reports will be kept.",
+    );
+    if (!confirmed) return;
+
+    try {
+      setChangingArchive(true);
+      const result = await clearFinishedOrders();
+      setQuery((current) => ({ ...current, page: 1 }));
+      await fetchOrderItems();
+      showMessage(
+        result.count
+          ? `${result.count} finished order(s) cleared from this list.`
+          : "The finished order list is already clear.",
+      );
+    } catch (err) {
+      showMessage(
+        err instanceof Error ? err.message : "Finished orders could not be cleared.",
+      );
+    } finally {
+      setChangingArchive(false);
+    }
+  };
+
+  const restoreList = async () => {
+    try {
+      setChangingArchive(true);
+      const result = await restoreFinishedOrders();
+      setQuery((current) => ({ ...current, page: 1 }));
+      await fetchOrderItems();
+      showMessage(`${result.count} finished order(s) restored.`);
+    } catch (err) {
+      showMessage(
+        err instanceof Error ? err.message : "Finished orders could not be restored.",
+      );
+    } finally {
+      setChangingArchive(false);
+    }
+  };
+
   return (
     <AnimatedSection variant="fade-up" delay={300}>
       <div className="rounded-2xl border border-red-900/40 bg-[#1a0000] p-5 shadow-2xl">
-        <div className="mb-6">
-          <h2 className="text-2xl font-black uppercase underline decoration-white underline-offset-4">
-            Finished Order Items
-          </h2>
+        <div className="mb-6 flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
+          <div>
+            <h2 className="text-2xl font-black uppercase underline decoration-white underline-offset-4">
+              Finished Order Items
+            </h2>
 
-          <p className="mt-6 text-sm text-gray-400">
-            Food items from orders marked as done or cancelled.
-          </p>
+            <p className="mt-6 text-sm text-gray-400">
+              Food items from orders marked as done or cancelled. Clearing the
+              list hides these records from this table without deleting order
+              history.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {archivedCount > 0 ? (
+              <button
+                type="button"
+                disabled={changingArchive}
+                onClick={restoreList}
+                className="rounded-xl border border-white/15 px-4 py-2.5 text-sm font-black text-gray-200 hover:bg-white/5 disabled:opacity-50"
+              >
+                Restore cleared ({archivedCount})
+              </button>
+            ) : null}
+            <button
+              type="button"
+              disabled={changingArchive || loading || finishedCount === 0}
+              onClick={clearList}
+              className="rounded-xl bg-red-600 px-4 py-2.5 text-sm font-black text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {changingArchive ? "Working..." : "Clear finished list"}
+            </button>
+          </div>
         </div>
 
         <AdminPageControls

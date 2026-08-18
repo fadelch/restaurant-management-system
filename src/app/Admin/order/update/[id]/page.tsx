@@ -6,6 +6,9 @@ import { getOrderById } from "@/server/getOrderById";
 import { updateOrderStatus } from "@/server/updateOrderStatus";
 import { formatUsdWithLbp } from "@/lib/currency";
 import { showMessage } from "@/components/MessageProvider";
+import { updatePaymentStatus } from "@/server/updatePaymentStatus";
+
+type PaymentStatus = "pending" | "done" | "cancelled" | "refunded";
 
 export default function UpdateOrderPage() {
   const router = useRouter();
@@ -14,10 +17,14 @@ export default function UpdateOrderPage() {
   const id = params.id as string;
 
   const [status, setStatus] = useState("pending");
+  const [paymentStatus, setPaymentStatus] =
+    useState<PaymentStatus>("pending");
+  const [refundedAmount, setRefundedAmount] = useState(0);
   const [userEmail, setUserEmail] = useState("");
   const [total, setTotal] = useState(0);
   const [itemsCount, setItemsCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [paymentLoading, setPaymentLoading] = useState(false);
 
   const totalPrice = formatUsdWithLbp(total);
 
@@ -33,6 +40,8 @@ export default function UpdateOrderPage() {
         }
 
         setStatus(order.status);
+        setPaymentStatus(order.paymentStatus as PaymentStatus);
+        setRefundedAmount(order.refundedAmount);
         setUserEmail(order.user?.email || "");
         setTotal(order.total);
         setItemsCount(order.items?.length || 0);
@@ -70,6 +79,28 @@ export default function UpdateOrderPage() {
     }
   };
 
+  const handlePaymentSubmit = async (
+    event: React.FormEvent<HTMLFormElement>,
+  ) => {
+    event.preventDefault();
+    try {
+      setPaymentLoading(true);
+      const updated = await updatePaymentStatus({ id, paymentStatus });
+      setPaymentStatus(updated.paymentStatus as PaymentStatus);
+      setRefundedAmount(updated.refundedAmount);
+      showMessage("Payment status updated successfully!");
+      router.refresh();
+    } catch (error) {
+      showMessage(
+        error instanceof Error
+          ? error.message
+          : "Failed to update payment status.",
+      );
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#120000] px-4 py-10 text-white">
       <div className="mx-auto max-w-2xl rounded-3xl border border-red-900/50 bg-[#1a0000]/95 p-8 shadow-2xl">
@@ -100,9 +131,22 @@ export default function UpdateOrderPage() {
               <p className="text-xs text-gray-400">≈ {totalPrice.lbp}</p>
             </div>
           </div>
+          <div className="mt-4 flex flex-wrap gap-3 text-sm">
+            <span className="rounded-full bg-yellow-500/10 px-3 py-1 font-black capitalize text-yellow-300">
+              Payment: {paymentStatus}
+            </span>
+            {refundedAmount > 0 ? (
+              <span className="rounded-full bg-violet-500/10 px-3 py-1 font-black text-violet-300">
+                Refunded: {formatUsdWithLbp(refundedAmount).usd}
+              </span>
+            ) : null}
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-4">
+          <label className="block text-sm font-black text-gray-200">
+            Order status
+          </label>
           <select
             value={status}
             onChange={(e) => setStatus(e.target.value)}
@@ -121,15 +165,49 @@ export default function UpdateOrderPage() {
           >
             {loading ? "Updating..." : "Update Status"}
           </button>
+        </form>
 
-          <button
-            type="button"
-            onClick={() => router.push("/Admin")}
-            className="w-full rounded-xl border border-white/10 bg-black/40 p-4 font-black text-gray-200 transition hover:bg-black/70 hover:cursor-pointer"
+        <form
+          onSubmit={handlePaymentSubmit}
+          className="mt-6 space-y-4 rounded-2xl border border-white/10 bg-black/25 p-5"
+        >
+          <div>
+            <label className="block text-sm font-black text-gray-200">
+              Cash payment status
+            </label>
+            <p className="mt-1 text-xs leading-5 text-gray-400">
+              Done means cash was collected. Refunded marks the full order as
+              refunded; approved food issue reports can record a partial refund.
+            </p>
+          </div>
+          <select
+            value={paymentStatus}
+            onChange={(event) =>
+              setPaymentStatus(event.target.value as PaymentStatus)
+            }
+            className="w-full rounded-xl border border-red-900/60 bg-[#120000]/80 p-4 text-white outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-700/50"
           >
-            Back to Admin
+            <option value="pending">Pending</option>
+            <option value="done">Done (cash collected)</option>
+            <option value="cancelled">Cancelled</option>
+            <option value="refunded">Refunded</option>
+          </select>
+          <button
+            type="submit"
+            disabled={paymentLoading}
+            className="w-full rounded-xl bg-violet-700 p-4 font-black text-white transition hover:bg-violet-800 disabled:opacity-60"
+          >
+            {paymentLoading ? "Updating..." : "Update Payment Status"}
           </button>
         </form>
+
+        <button
+          type="button"
+          onClick={() => router.push("/Admin")}
+          className="mt-6 w-full rounded-xl border border-white/10 bg-black/40 p-4 font-black text-gray-200 transition hover:cursor-pointer hover:bg-black/70"
+        >
+          Back to Admin
+        </button>
       </div>
     </div>
   );

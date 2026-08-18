@@ -113,7 +113,7 @@ export default function OrderTable() {
                 <th className="w-[12%] px-3 py-4">Contact</th>
                 <th className="w-[8%] px-3 py-4">Status</th>
                 <th className="w-[8%] px-3 py-4">Payment</th>
-                <th className="w-[8%] px-3 py-4">Code</th>
+                <th className="w-[8%] px-3 py-4">Pay Status</th>
                 <th className="w-[13%] px-3 py-4">Fulfillment</th>
                 <th className="w-[7%] px-3 py-4">Map</th>
                 <th className="w-[5%] px-3 py-4">Items</th>
@@ -191,7 +191,19 @@ export default function OrderTable() {
                       </td>
 
                       <td className="break-words px-3 py-4 text-gray-300">
-                        {order.paymentCode || "-"}
+                        <span
+                          className={`rounded-full px-2 py-1 text-[10px] font-black uppercase ${
+                            order.paymentStatus === "done"
+                              ? "bg-emerald-500/10 text-emerald-300"
+                              : order.paymentStatus === "refunded"
+                                ? "bg-violet-500/10 text-violet-300"
+                                : order.paymentStatus === "cancelled"
+                                  ? "bg-red-500/10 text-red-300"
+                                  : "bg-yellow-500/10 text-yellow-300"
+                          }`}
+                        >
+                          {order.paymentStatus || "pending"}
+                        </span>
                       </td>
 
                       <td className="break-words px-3 py-4 text-gray-300">

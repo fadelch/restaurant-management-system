@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import FoodCard from "@/components/FoodCard";
 import type { FoodItem } from "@/types";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface MenuSectionProps {
   title?: string;
@@ -12,11 +13,12 @@ interface MenuSectionProps {
 }
 
 export default function MenuSection({
-  title = "Menu",
+  title,
   foods,
   favoriteFoodIds = new Set<string>(),
   onToggleFavorite,
 }: MenuSectionProps) {
+  const { copy } = useLanguage();
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
   const [availability, setAvailability] = useState("all");
@@ -74,7 +76,7 @@ export default function MenuSection({
     visibleFoods
       .reduce((groups, food) => {
         const groupKey = food.type?.id || food.typeId || "other";
-        const groupName = food.type?.name?.trim() || "Other";
+        const groupName = food.type?.name?.trim() || copy.menu.other;
         const existingGroup = groups.get(groupKey);
 
         if (existingGroup) {
@@ -93,33 +95,35 @@ export default function MenuSection({
   ).sort((first, second) => first.name.localeCompare(second.name));
 
   return (
-    <section className="mb-10 sm:mb-16">
-      <h3 className="mb-5 text-2xl font-bold sm:mb-6 sm:text-3xl">{title}</h3>
+    <section className="mb-8 sm:mb-14">
+      <h3 className="mb-5 text-2xl font-black sm:mb-6 sm:text-3xl">
+        {title || copy.menu.browse}
+      </h3>
 
-      <div className="mb-8 grid gap-3 rounded-2xl border border-neutral-800 bg-neutral-950 p-4 shadow-lg sm:grid-cols-2 sm:p-5 lg:grid-cols-5">
-        <label className="sm:col-span-2 lg:col-span-2">
+      <div className="mb-6 grid grid-cols-2 gap-3 rounded-2xl border border-neutral-800 bg-neutral-950 p-3 shadow-lg sm:mb-8 sm:p-5 lg:grid-cols-5">
+        <label className="col-span-2 lg:col-span-2">
           <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-gray-400">
-            Search foods
+            {copy.menu.searchLabel}
           </span>
           <input
             type="search"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search by food name..."
-            className="w-full rounded-xl border border-neutral-700 bg-black px-4 py-3 text-white outline-none transition placeholder:text-gray-600 focus:border-red-500 focus:ring-2 focus:ring-red-700/40"
+            placeholder={copy.menu.searchPlaceholder}
+            className="w-full rounded-xl border border-neutral-700 bg-black px-3 py-3 text-white outline-none transition placeholder:text-gray-600 focus:border-red-500 focus:ring-2 focus:ring-red-700/40 sm:px-4"
           />
         </label>
 
         <label>
           <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-gray-400">
-            Category
+            {copy.menu.category}
           </span>
           <select
             value={category}
             onChange={(event) => setCategory(event.target.value)}
-            className="w-full rounded-xl border border-neutral-700 bg-black px-4 py-3 text-white outline-none focus:border-red-500"
+            className="w-full rounded-xl border border-neutral-700 bg-black px-2.5 py-3 text-sm text-white outline-none focus:border-red-500 sm:px-4 sm:text-base"
           >
-            <option value="all">All categories</option>
+            <option value="all">{copy.menu.allCategories}</option>
             {categories.map((item) => (
               <option key={item.id} value={item.id}>
                 {item.name}
@@ -130,41 +134,41 @@ export default function MenuSection({
 
         <label>
           <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-gray-400">
-            Availability
+            {copy.menu.availability}
           </span>
           <select
             value={availability}
             onChange={(event) => setAvailability(event.target.value)}
-            className="w-full rounded-xl border border-neutral-700 bg-black px-4 py-3 text-white outline-none focus:border-red-500"
+            className="w-full rounded-xl border border-neutral-700 bg-black px-2.5 py-3 text-sm text-white outline-none focus:border-red-500 sm:px-4 sm:text-base"
           >
-            <option value="all">All items</option>
-            <option value="available">In stock</option>
-            <option value="unavailable">Out of stock</option>
+            <option value="all">{copy.menu.allItems}</option>
+            <option value="available">{copy.menu.inStock}</option>
+            <option value="unavailable">{copy.menu.outOfStock}</option>
           </select>
         </label>
 
-        <label>
+        <label className="col-span-2 lg:col-span-1">
           <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-gray-400">
-            Sort by
+            {copy.menu.sort}
           </span>
           <select
             value={sort}
             onChange={(event) => setSort(event.target.value)}
-            className="w-full rounded-xl border border-neutral-700 bg-black px-4 py-3 text-white outline-none focus:border-red-500"
+            className="w-full rounded-xl border border-neutral-700 bg-black px-3 py-3 text-sm text-white outline-none focus:border-red-500 sm:px-4 sm:text-base"
           >
-            <option value="default">Newest</option>
-            <option value="price-low">Price: low to high</option>
-            <option value="price-high">Price: high to low</option>
-            <option value="popular">Most popular</option>
+            <option value="default">{copy.menu.newest}</option>
+            <option value="price-low">{copy.menu.priceLow}</option>
+            <option value="price-high">{copy.menu.priceHigh}</option>
+            <option value="popular">{copy.menu.popular}</option>
           </select>
         </label>
       </div>
 
       {foodGroups.length === 0 ? (
-        <div className="rounded-2xl border border-neutral-800 bg-neutral-950 p-8 text-center">
-          <p className="text-xl font-black">No matching foods</p>
+        <div className="rounded-2xl border border-neutral-800 bg-neutral-950 p-6 text-center sm:p-8">
+          <p className="text-xl font-black">{copy.menu.noMatches}</p>
           <p className="mt-2 text-gray-400">
-            Try changing your search or filters.
+            {copy.menu.noMatchesHelp}
           </p>
           <button
             type="button"
@@ -176,24 +180,26 @@ export default function MenuSection({
             }}
             className="mt-5 rounded-xl bg-red-600 px-5 py-3 font-bold text-white hover:bg-red-700"
           >
-            Reset filters
+            {copy.menu.reset}
           </button>
         </div>
       ) : (
-        <div className="space-y-8 sm:space-y-10">
+        <div className="space-y-5 sm:space-y-8">
           {foodGroups.map((group) => (
             <section
               key={group.id}
-              className="rounded-2xl border border-neutral-800 bg-neutral-950/70 p-4 shadow-lg sm:rounded-3xl sm:p-6"
+              className="rounded-2xl border border-neutral-800 bg-neutral-950/70 p-3 shadow-lg sm:rounded-3xl sm:p-6"
             >
               <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-neutral-800 pb-4 sm:mb-6">
-                <h4 className="text-2xl font-black text-white sm:text-3xl">
+                <h4 className="text-xl font-black text-white sm:text-3xl">
                   {group.name}
                 </h4>
 
                 <span className="rounded-full bg-red-600/15 px-4 py-2 text-sm font-bold text-red-400">
                   {group.foods.length}{" "}
-                  {group.foods.length === 1 ? "item" : "items"}
+                  {group.foods.length === 1
+                    ? copy.menu.item
+                    : copy.menu.items}
                 </span>
               </div>
 

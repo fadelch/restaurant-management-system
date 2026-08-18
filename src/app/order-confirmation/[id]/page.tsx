@@ -169,6 +169,12 @@ export default function OrderConfirmationPage() {
                 <p className="mt-1 font-black">
                   {order.paymentMethod || "Not specified"}
                 </p>
+                <span className="mt-3 inline-flex rounded-full bg-yellow-500/10 px-3 py-1 text-xs font-black uppercase text-yellow-300">
+                  {order.paymentStatus || "pending"}
+                </span>
+                <p className="mt-2 text-xs leading-5 text-gray-500">
+                  Cash payment is marked Done after delivery or pickup.
+                </p>
               </div>
               <div className="rounded-2xl border border-white/10 bg-black/30 p-5">
                 <p className="text-sm text-gray-400">Total</p>

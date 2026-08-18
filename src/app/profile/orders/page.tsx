@@ -9,6 +9,8 @@ import { formatUsdWithLbp } from "@/lib/currency";
 import { getCustomerOrders } from "@/server/getCustomerOrders";
 import type { Order } from "@/types";
 import { normalizeOptionalIngredients } from "@/lib/foodOptions";
+import { getCurrentSession } from "@/server/authActions";
+import FoodIssueReportPanel from "@/components/FoodIssueReportPanel";
 
 function statusClass(status: string) {
   const value = status.toLowerCase();
@@ -20,6 +22,14 @@ function statusClass(status: string) {
   return "bg-yellow-500/15 text-yellow-300";
 }
 
+function paymentStatusClass(status: string) {
+  const value = status.toLowerCase();
+  if (value === "done") return "bg-emerald-500/15 text-emerald-300";
+  if (value === "refunded") return "bg-violet-500/15 text-violet-300";
+  if (value === "cancelled") return "bg-red-500/15 text-red-300";
+  return "bg-yellow-500/15 text-yellow-300";
+}
+
 export default function CustomerOrdersPage() {
   const router = useRouter();
   const { reorderItems } = useCart();
@@ -28,16 +38,16 @@ export default function CustomerOrdersPage() {
 
   useEffect(() => {
     const loadOrders = async () => {
-      const userEmail = sessionStorage.getItem("userEmail");
+      const session = await getCurrentSession();
 
-      if (!userEmail) {
+      if (!session?.email) {
         showMessage("Please log in to view your orders.");
-        router.replace("/login");
+        router.replace("/login?next=/profile/orders");
         return;
       }
 
       try {
-        const data = await getCustomerOrders(userEmail);
+        const data = await getCustomerOrders(session.email);
         setOrders((data as Order[]) || []);
       } catch (error) {
         showMessage(
@@ -86,7 +96,8 @@ export default function CustomerOrdersPage() {
           </h1>
           <p className="mt-3 text-gray-400">
             Track current orders, review previous purchases, and order your
-            favorites again.
+            favorites again. Completed orders also let you report a food issue
+            and request a refund for an affected item.
           </p>
         </div>
 
@@ -133,11 +144,18 @@ export default function CustomerOrdersPage() {
                         ).toLocaleString()}
                       </p>
                     </div>
-                    <span
-                      className={`w-fit rounded-full px-4 py-2 text-sm font-black uppercase ${statusClass(order.status)}`}
-                    >
-                      {order.status}
-                    </span>
+                    <div className="flex flex-wrap gap-2">
+                      <span
+                        className={`w-fit rounded-full px-4 py-2 text-sm font-black uppercase ${statusClass(order.status)}`}
+                      >
+                        Order: {order.status}
+                      </span>
+                      <span
+                        className={`w-fit rounded-full px-4 py-2 text-sm font-black uppercase ${paymentStatusClass(order.paymentStatus || "pending")}`}
+                      >
+                        Payment: {order.paymentStatus || "pending"}
+                      </span>
+                    </div>
                   </div>
 
                   <div className="grid gap-6 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_280px]">
@@ -184,6 +202,18 @@ export default function CustomerOrdersPage() {
                                   Request: {item.customizationNote}
                                 </p>
                               ) : null}
+                              {[
+                                "done",
+                                "completed",
+                              ].includes(order.status.toLowerCase()) ? (
+                                <FoodIssueReportPanel
+                                  orderId={order.id}
+                                  orderItemId={item.id}
+                                  foodName={item.food?.name || "Food item"}
+                                  maxQuantity={item.quantity}
+                                  initialReports={item.issueReports || []}
+                                />
+                              ) : null}
                             </div>
                             <p className="font-black text-green-300">
                               {formatUsdWithLbp(item.price * item.quantity).usd}
@@ -210,6 +240,19 @@ export default function CustomerOrdersPage() {
                         <p className="mt-1 font-bold">
                           {order.paymentMethod || "Not specified"}
                         </p>
+                      </div>
+                      <div>
+                        <p className="text-xs uppercase tracking-wider text-gray-500">
+                          Payment Status
+                        </p>
+                        <p className="mt-1 font-bold capitalize">
+                          {order.paymentStatus || "pending"}
+                        </p>
+                        {(order.refundedAmount || 0) > 0 ? (
+                          <p className="mt-1 text-sm font-bold text-violet-300">
+                            Refunded: {formatUsdWithLbp(order.refundedAmount || 0).usd}
+                          </p>
+                        ) : null}
                       </div>
                       <div>
                         <p className="text-xs uppercase tracking-wider text-gray-500">

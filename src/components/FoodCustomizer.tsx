@@ -51,7 +51,7 @@ export default function FoodCustomizer({ food }: { food: FoodItem }) {
     );
   };
 
-  const addCustomizedItem = () => {
+  const addCustomizedItem = async () => {
     const quantityInCart = cartItems
       .filter((item) => item.id === food.id)
       .reduce((total, item) => total + item.cartQty, 0);
@@ -59,13 +59,15 @@ export default function FoodCustomizer({ food }: { food: FoodItem }) {
       showMessage(`Only ${food.qty} item(s) available in stock.`);
       return;
     }
-    addToCart(food, {
+    const added = await addToCart(food, {
       extraCheese,
       removedIngredients,
       addedIngredients,
       customizationNote,
     });
-    showMessage(`${food.name} customization added to your cart.`);
+    if (added) {
+      showMessage(`${food.name} customization added to your cart.`);
+    }
   };
 
   return (

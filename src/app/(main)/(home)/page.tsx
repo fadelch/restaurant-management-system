@@ -13,8 +13,11 @@ import { getFavoriteFoodIds, toggleFavorite } from "@/server/favorites";
 import Footer from "@/components/Footer";
 import type { FoodItem } from "@/types";
 import { showMessage } from "@/components/MessageProvider";
+import { useLanguage } from "@/context/LanguageContext";
+import { getCurrentSession } from "@/server/authActions";
 
 export default function Page() {
+  const { language, copy } = useLanguage();
   const [foods, setFoods] = useState<FoodItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -28,10 +31,10 @@ export default function Page() {
         const data = await getFoods();
         setFoods((data as FoodItem[]) || []);
 
-        const userEmail = sessionStorage.getItem("userEmail");
-        if (userEmail) {
+        const session = await getCurrentSession();
+        if (session?.email) {
           try {
-            const ids = await getFavoriteFoodIds(userEmail);
+            const ids = await getFavoriteFoodIds(session.email);
             setFavoriteFoodIds(new Set(ids));
           } catch (favoriteError) {
             console.log("Error fetching favorites:", favoriteError);
@@ -49,15 +52,15 @@ export default function Page() {
   }, []);
 
   const handleToggleFavorite = async (foodId: string) => {
-    const userEmail = sessionStorage.getItem("userEmail");
+    const session = await getCurrentSession();
 
-    if (!userEmail) {
+    if (!session?.email) {
       showMessage("Please log in to save favorite foods.");
       return;
     }
 
     try {
-      const result = await toggleFavorite(userEmail, foodId);
+      const result = await toggleFavorite(session.email, foodId);
 
       setFavoriteFoodIds((current) => {
         const next = new Set(current);
@@ -79,15 +82,19 @@ export default function Page() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white">
+    <div
+      lang={language}
+      dir={language === "ar" ? "rtl" : "ltr"}
+      className="min-h-screen bg-[#080808] text-white"
+    >
       <Nav_bar />
 
-      <div className="flex min-w-0">
+      <div className="mx-auto flex min-w-0 max-w-[1540px]">
         <HomeSidebar open={sidebarOpen} setOpen={setSidebarOpen} />
 
         <main
-          className={`min-w-0 w-full px-4 transition-all duration-300 sm:px-6 md:px-8 ${
-            sidebarOpen ? "lg:ml-4 xl:ml-8" : "ml-0"
+          className={`w-full min-w-0 px-3 transition-all duration-300 sm:px-6 lg:px-8 ${
+            sidebarOpen ? "lg:ms-4 xl:ms-8" : "ms-0"
           }`}
         >
           <AnimatedSection>
@@ -98,11 +105,19 @@ export default function Page() {
             <AboutSection />
           </AnimatedSection>
 
-          <AnimatedSection className="py-10 sm:py-16">
-            <section id="menu" className="scroll-mt-36 sm:scroll-mt-28">
-              <h2 className="mb-7 text-3xl font-bold sm:mb-10 sm:text-4xl">
-                Menu
-              </h2>
+          <AnimatedSection className="py-8 sm:py-12 lg:py-16">
+            <section id="menu" className="scroll-mt-24">
+              <p className="text-xs font-black uppercase tracking-[0.22em] text-red-400 sm:text-sm">
+                {copy.menu.eyebrow}
+              </p>
+              <div className="mb-6 mt-2 flex flex-col justify-between gap-2 sm:mb-9 sm:flex-row sm:items-end">
+                <h2 className="text-3xl font-black sm:text-4xl lg:text-5xl">
+                  {copy.menu.title}
+                </h2>
+                <p className="text-sm text-gray-400 sm:text-base">
+                  {copy.menu.subtitle}
+                </p>
+              </div>
 
               {loading ? (
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-6 xl:grid-cols-3">
@@ -115,12 +130,11 @@ export default function Page() {
                 </div>
               ) : foods.length === 0 ? (
                 <div className="rounded-2xl bg-neutral-900 p-6 text-center text-lg font-semibold shadow-sm sm:rounded-3xl sm:p-8 sm:text-xl">
-                  No foods found.
+                  {copy.menu.empty}
                 </div>
               ) : (
                 <AnimatedSection className="mb-8 sm:mb-10">
                   <MenuSection
-                    title="Browse by Food Type"
                     foods={foods}
                     favoriteFoodIds={favoriteFoodIds}
                     onToggleFavorite={handleToggleFavorite}

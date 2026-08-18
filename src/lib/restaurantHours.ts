@@ -30,44 +30,75 @@ function readableTime(value: string) {
   });
 }
 
+function minutes(value: string) {
+  const [hour, minute] = value.split(":").map(Number);
+  return hour * 60 + minute;
+}
+
+function isOvernight(openTime: string, closeTime: string) {
+  return minutes(closeTime) <= minutes(openTime);
+}
+
 export async function getRestaurantStatus() {
   const { weekday, time } = localParts();
+  const currentMinutes = minutes(time);
   const hours = await prisma.restaurantHours.findMany({
     orderBy: { dayOfWeek: "asc" },
   });
   const today = hours.find((row) => row.dayOfWeek === weekday);
-  const isOpen = Boolean(
-    today &&
-    !today.isClosed &&
-    time >= today.openTime &&
-    time < today.closeTime,
+  const previous = hours.find(
+    (row) => row.dayOfWeek === (weekday + 6) % 7,
   );
 
-  if (isOpen && today) {
+  const openFromToday = Boolean(
+    today &&
+      !today.isClosed &&
+      (isOvernight(today.openTime, today.closeTime)
+        ? currentMinutes >= minutes(today.openTime)
+        : currentMinutes >= minutes(today.openTime) &&
+          currentMinutes < minutes(today.closeTime)),
+  );
+  const openFromPreviousDay = Boolean(
+    previous &&
+      !previous.isClosed &&
+      isOvernight(previous.openTime, previous.closeTime) &&
+      currentMinutes < minutes(previous.closeTime),
+  );
+  const activeHours = openFromToday
+    ? today
+    : openFromPreviousDay
+      ? previous
+      : null;
+
+  if (activeHours) {
     return {
       isOpen: true,
-      message: `Open now · Closes at ${readableTime(today.closeTime)}`,
+      message: `Open now · Closes at ${readableTime(activeHours.closeTime)}`,
     };
   }
 
-  for (let offset = 1; offset <= 7; offset += 1) {
+  for (let offset = 0; offset <= 7; offset += 1) {
     const nextDay = (weekday + offset) % 7;
     const next = hours.find(
       (row) => row.dayOfWeek === nextDay && !row.isClosed,
     );
-    if (next) {
+    const opensLaterToday =
+      offset === 0 && currentMinutes < minutes(next?.openTime || "00:00");
+    if (next && (offset > 0 || opensLaterToday)) {
       const dayLabel =
-        offset === 1
-          ? "tomorrow"
-          : [
-              "Sunday",
-              "Monday",
-              "Tuesday",
-              "Wednesday",
-              "Thursday",
-              "Friday",
-              "Saturday",
-            ][nextDay];
+        offset === 0
+          ? "today"
+          : offset === 1
+            ? "tomorrow"
+            : [
+                "Sunday",
+                "Monday",
+                "Tuesday",
+                "Wednesday",
+                "Thursday",
+                "Friday",
+                "Saturday",
+              ][nextDay];
       return {
         isOpen: false,
         message: `Currently closed · Orders reopen ${dayLabel} at ${readableTime(next.openTime)}`,

@@ -9,6 +9,7 @@ import { idSchema, validationMessage } from "@/lib/validation";
 const zoneSchema = z.object({
   id: idSchema.optional(),
   name: z.string().trim().min(1, "Area name is required.").max(80),
+  description: z.string().trim().max(300).default(""),
   deliveryFee: z.coerce.number().min(0).max(10_000),
   minimumOrder: z.coerce.number().min(0).max(100_000),
   estimatedMinutes: z.coerce.number().int().min(5).max(600),
@@ -26,6 +27,18 @@ const hoursSchema = z.object({
   isClosed: z.boolean(),
 });
 
+const weeklyHoursSchema = z
+  .array(hoursSchema)
+  .length(7, "Opening hours are required for all seven days.")
+  .superRefine((hours, context) => {
+    if (new Set(hours.map((item) => item.dayOfWeek)).size !== 7) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Each day may only appear once in the weekly schedule.",
+      });
+    }
+  });
+
 const couponSchema = z.object({
   id: idSchema.optional(),
   code: z
@@ -37,6 +50,7 @@ const couponSchema = z.object({
       /^[A-Za-z0-9_-]+$/,
       "Coupon codes may only contain letters, numbers, - and _.",
     ),
+  description: z.string().trim().max(300).default(""),
   discountType: z.enum(["percentage", "fixed"]),
   value: z.coerce.number().positive().max(100_000),
   minimumOrder: z.coerce.number().min(0).max(100_000),
@@ -101,6 +115,7 @@ export async function saveDeliveryZone(input: z.input<typeof zoneSchema>) {
         where: { id: data.id },
         data: {
           name: data.name,
+          description: data.description,
           deliveryFee: data.deliveryFee,
           minimumOrder: data.minimumOrder,
           estimatedMinutes: data.estimatedMinutes,
@@ -110,6 +125,7 @@ export async function saveDeliveryZone(input: z.input<typeof zoneSchema>) {
     : await prisma.deliveryZone.create({
         data: {
           name: data.name,
+          description: data.description,
           deliveryFee: data.deliveryFee,
           minimumOrder: data.minimumOrder,
           estimatedMinutes: data.estimatedMinutes,
@@ -137,21 +153,27 @@ export async function deleteDeliveryZone(id: string) {
   });
 }
 
-export async function saveRestaurantHours(input: z.input<typeof hoursSchema>) {
+export async function saveRestaurantHours(
+  input: z.input<typeof weeklyHoursSchema>,
+) {
   const actor = await requireAdmin();
-  const data = parseOrThrow(hoursSchema.safeParse(input));
-  const before = await prisma.restaurantHours.findUnique({
-    where: { dayOfWeek: data.dayOfWeek },
+  const data = parseOrThrow(weeklyHoursSchema.safeParse(input));
+  const before = await prisma.restaurantHours.findMany({
+    orderBy: { dayOfWeek: "asc" },
   });
-  const hours = await prisma.restaurantHours.upsert({
-    where: { dayOfWeek: data.dayOfWeek },
-    create: data,
-    update: data,
-  });
+  const hours = await prisma.$transaction(
+    data.map((item) =>
+      prisma.restaurantHours.upsert({
+        where: { dayOfWeek: item.dayOfWeek },
+        create: item,
+        update: item,
+      }),
+    ),
+  );
   await writeAuditLog(actor, {
     action: "UPDATE_RESTAURANT_HOURS",
     entityType: "RestaurantHours",
-    entityId: String(hours.id),
+    entityId: "weekly-schedule",
     changes: { before, after: hours },
   });
   return hours;
@@ -164,6 +186,7 @@ export async function saveCoupon(input: unknown) {
     throw new Error("Percentage discounts cannot be greater than 100%.");
   const couponData = {
     code: data.code.toUpperCase(),
+    description: data.description,
     discountType: data.discountType,
     value: data.value,
     minimumOrder: data.minimumOrder,

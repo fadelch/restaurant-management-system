@@ -18,11 +18,12 @@ model User {
   isBanned         Boolean  @default(false)
   createdAt        DateTime @default(now())
 
-  orders          Order[]         @relation("UserOrders")
-  favorites       Favorite[]      @relation("UserFavorites")
-  auditLogs       AuditLog[]      @relation("AdminAuditLogs")
-  stockMovements  StockMovement[] @relation("AdminStockMovements")
-  assignedCoupons Coupon[]        @relation("CouponUser")
+  orders           Order[]           @relation("UserOrders")
+  favorites        Favorite[]        @relation("UserFavorites")
+  auditLogs        AuditLog[]        @relation("AdminAuditLogs")
+  stockMovements   StockMovement[]   @relation("AdminStockMovements")
+  assignedCoupons  Coupon[]          @relation("CouponUser")
+  foodIssueReports FoodIssueReport[] @relation("UserFoodIssueReports")
 }
 
 model FoodType {
@@ -70,6 +71,8 @@ model Order {
   fulfillmentType  String    @default("delivery")
   paymentMethod    String?
   paymentCode      String?
+  paymentStatus    String    @default("pending")
+  refundedAmount   Float     @default(0)
   customerAddress  String?
   mapLocation      String?
   orderNotes       String?
@@ -78,26 +81,56 @@ model Order {
   couponId         String?
   couponCode       String?
   createdAt        DateTime  @default(now())
+  adminArchivedAt  DateTime?
 
-  user           User            @relation("UserOrders", fields: [userId], references: [id], onDelete: Cascade)
-  items          OrderItem[]     @relation("OrderItems")
-  deliveryZone   DeliveryZone?   @relation(fields: [deliveryZoneId], references: [id], onDelete: SetNull)
-  coupon         Coupon?         @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  user           User              @relation("UserOrders", fields: [userId], references: [id], onDelete: Cascade)
+  items          OrderItem[]       @relation("OrderItems")
+  deliveryZone   DeliveryZone?     @relation(fields: [deliveryZoneId], references: [id], onDelete: SetNull)
+  coupon         Coupon?           @relation(fields: [couponId], references: [id], onDelete: SetNull)
   stockMovements StockMovement[]
+  issueReports   FoodIssueReport[] @relation("OrderFoodIssueReports")
+
+  @@index([paymentStatus])
+  @@index([adminArchivedAt])
 }
 
 model OrderItem {
-  id                 Int      @id @default(autoincrement())
+  id                 Int               @id @default(autoincrement())
   orderId            String
-  order              Order    @relation("OrderItems", fields: [orderId], references: [id], onDelete: Cascade)
+  order              Order             @relation("OrderItems", fields: [orderId], references: [id], onDelete: Cascade)
   foodId             String
-  food               Food     @relation("FoodOrderItems", fields: [foodId], references: [id], onDelete: Cascade)
+  food               Food              @relation("FoodOrderItems", fields: [foodId], references: [id], onDelete: Cascade)
   quantity           Int
   price              Float
-  extraCheese        Boolean  @default(false)
-  removedIngredients String[] @default([])
-  addedIngredients   Json     @default("[]")
+  extraCheese        Boolean           @default(false)
+  removedIngredients String[]          @default([])
+  addedIngredients   Json              @default("[]")
   customizationNote  String?
+  issueReports       FoodIssueReport[] @relation("OrderItemFoodIssueReports")
+}
+
+model FoodIssueReport {
+  id           String    @id @default(uuid())
+  orderId      String
+  orderItemId  Int
+  userId       String
+  reason       String
+  details      String
+  quantity     Int       @default(1)
+  status       String    @default("pending")
+  refundAmount Float     @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  resolvedAt   DateTime?
+
+  order     Order     @relation("OrderFoodIssueReports", fields: [orderId], references: [id], onDelete: Cascade)
+  orderItem OrderItem @relation("OrderItemFoodIssueReports", fields: [orderItemId], references: [id], onDelete: Cascade)
+  user      User      @relation("UserFoodIssueReports", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@index([orderId])
+  @@index([orderItemId])
+  @@index([userId])
 }
 
 model Favorite {
@@ -132,6 +165,7 @@ model AuditLog {
 model DeliveryZone {
   id               String   @id @default(uuid())
   name             String   @unique
+  description      String   @default("")
   deliveryFee      Float
   minimumOrder     Float
   estimatedMinutes Int
@@ -154,6 +188,7 @@ model RestaurantHours {
 model Coupon {
   id           String    @id @default(uuid())
   code         String    @unique
+  description  String    @default("")
   discountType String
   value        Float
   minimumOrder Float     @default(0)

@@ -40,6 +40,7 @@ textarea {
 
 button:not(:disabled) {
   cursor: pointer;
+  touch-action: manipulation;
 }
 
 button:disabled {
@@ -54,4 +55,24 @@ main {
 .responsive-table {
   -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
+}
+
+:focus-visible {
+  outline: 3px solid rgb(239 68 68 / 0.65);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

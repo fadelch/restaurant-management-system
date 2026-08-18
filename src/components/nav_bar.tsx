@@ -1,18 +1,61 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useCart } from "@/context/CartContext";
-import { logoutUser } from "@/server/authActions";
+import { getCurrentSession, logoutUser } from "@/server/authActions";
 import { getCheckoutSettings } from "@/server/checkoutSettings";
+import { useLanguage } from "@/context/LanguageContext";
+import { showMessage } from "@/components/MessageProvider";
+
+type Session = Awaited<ReturnType<typeof getCurrentSession>>;
 
 export default function Nav_bar() {
   const router = useRouter();
+  const pathname = usePathname();
   const { cartCount } = useCart();
+  const { copy, toggleLanguage } = useLanguage();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [session, setSession] = useState<Session>(null);
+  const [sessionLoaded, setSessionLoaded] = useState(false);
   const [restaurant, setRestaurant] = useState<{
     isOpen: boolean;
     message: string;
   } | null>(null);
+  const isHome = pathname === "/";
+  const labels = isHome
+    ? copy.nav
+    : {
+        brand: "Restaurant",
+        home: "Home",
+        menu: "Menu",
+        admin: "Admin",
+        orders: "My Orders",
+        cart: "Shopping cart",
+        login: "Login",
+        logout: "Logout",
+        open: "Open now",
+        closed: "Closed",
+        language: "العربية",
+        openMenu: "Open navigation menu",
+        closeMenu: "Close navigation menu",
+      };
+
+  useEffect(() => {
+    let active = true;
+
+    getCurrentSession()
+      .then((currentSession) => {
+        if (active) setSession(currentSession);
+      })
+      .finally(() => {
+        if (active) setSessionLoaded(true);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [pathname]);
 
   useEffect(() => {
     getCheckoutSettings()
@@ -20,10 +63,13 @@ export default function Nav_bar() {
       .catch(() => setRestaurant(null));
   }, []);
 
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname]);
+
   const navigateTo = (path: string) => {
-    router.push(path, {
-      scroll: false,
-    });
+    setMobileMenuOpen(false);
+    router.push(path, { scroll: false });
   };
 
   const logout = async () => {
@@ -31,111 +77,217 @@ export default function Nav_bar() {
     sessionStorage.removeItem("userEmail");
     sessionStorage.removeItem("Admin");
     sessionStorage.removeItem("SuperAdmin");
-
-    router.replace("/login", {
-      scroll: false,
-    });
+    setSession(null);
+    setMobileMenuOpen(false);
+    router.replace("/");
+    router.refresh();
   };
 
   const scrollToMenu = () => {
+    setMobileMenuOpen(false);
     const menu = document.getElementById("menu");
 
     if (menu) {
-      menu.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
+      menu.scrollIntoView({ behavior: "smooth", block: "start" });
       return;
     }
 
     navigateTo("/#menu");
   };
 
-  return (
-    <nav className="sticky top-0 z-50 border-b border-red-900/40 bg-black/90 py-3 text-white shadow-xl backdrop-blur-md sm:py-4">
-      <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-3 sm:px-6 md:flex-row md:gap-6">
+  const openCart = () => {
+    if (!session) {
+      showMessage("Please log in to view your cart.");
+      navigateTo("/login?next=%2Fcart");
+      return;
+    }
+
+    navigateTo("/cart");
+  };
+
+  const linkClass =
+    "rounded-xl px-3 py-2.5 text-sm font-bold text-white transition hover:bg-white/5 hover:text-red-300";
+
+  const navigation = (
+    <>
+      <button type="button" onClick={() => navigateTo("/")} className={linkClass}>
+        {labels.home}
+      </button>
+      <button type="button" onClick={scrollToMenu} className={linkClass}>
+        {labels.menu}
+      </button>
+      {session?.isAdmin ? (
         <button
           type="button"
-          onClick={() => navigateTo("/")}
-          className="flex cursor-pointer items-center gap-2 transition-all duration-300 hover:scale-105 sm:gap-3"
+          onClick={() => navigateTo("/Admin")}
+          className={linkClass}
         >
-          <img
-            src="/Logo.png"
-            alt="Logo"
-            className="h-12 w-12 rounded-md object-cover sm:h-16 sm:w-16"
-          />
-
-          <span className="text-lg font-black uppercase tracking-wide text-red-500 transition hover:text-red-400 sm:text-2xl">
-            Restaurant
-          </span>
+          {labels.admin}
         </button>
+      ) : null}
+      {session ? (
+        <button
+          type="button"
+          onClick={() => navigateTo("/profile/orders")}
+          className={linkClass}
+        >
+          {labels.orders}
+        </button>
+      ) : null}
+    </>
+  );
 
-        <div className="flex w-full flex-wrap items-center justify-center gap-2 sm:gap-4 md:w-auto lg:flex-nowrap">
-          {restaurant ? (
-            <span
-              title={restaurant.message}
-              className={`rounded-full px-3 py-1 text-xs font-black ${restaurant.isOpen ? "bg-green-500/15 text-green-300" : "bg-red-500/15 text-red-300"}`}
-            >
-              <span className="xl:hidden">
-                {restaurant.isOpen ? "Open now" : "Closed"}
-              </span>
-              <span className="hidden xl:inline">{restaurant.message}</span>
-            </span>
-          ) : null}
+  const accountAction = sessionLoaded ? (
+    session ? (
+      <button
+        type="button"
+        onClick={logout}
+        className="rounded-xl bg-red-600 px-5 py-2.5 text-sm font-black text-white transition hover:bg-red-700"
+      >
+        {labels.logout}
+      </button>
+    ) : (
+      <button
+        type="button"
+        onClick={() => navigateTo("/login")}
+        className="rounded-xl bg-red-600 px-5 py-2.5 text-sm font-black text-white transition hover:bg-red-700"
+      >
+        {labels.login}
+      </button>
+    )
+  ) : (
+    <span className="h-10 w-20 animate-pulse rounded-xl bg-white/10" />
+  );
+
+  return (
+    <nav className="sticky top-0 z-50 border-b border-red-900/40 bg-black/95 text-white shadow-xl backdrop-blur-xl">
+      <div className="mx-auto max-w-7xl px-3 sm:px-6">
+        <div className="flex h-[72px] items-center justify-between gap-3 lg:h-[84px]">
           <button
             type="button"
             onClick={() => navigateTo("/")}
-            className="cursor-pointer px-1 py-2 text-sm font-bold text-white transition-all duration-300 hover:scale-110 hover:text-red-400 sm:text-base"
+            className="flex min-w-0 items-center gap-2.5 transition hover:opacity-90 sm:gap-3"
           >
-            Home
+            <img
+              src="/Logo.png"
+              alt="Restaurant logo"
+              className="h-11 w-11 shrink-0 rounded-xl object-cover ring-1 ring-red-500/30 sm:h-14 sm:w-14"
+            />
+            <span className="truncate text-base font-black uppercase tracking-wide text-red-500 sm:text-xl">
+              {labels.brand}
+            </span>
           </button>
 
-          <button
-            type="button"
-            onClick={scrollToMenu}
-            className="cursor-pointer px-1 py-2 text-sm font-bold text-white transition-all duration-300 hover:scale-110 hover:text-red-400 sm:text-base"
-          >
-            Menu
-          </button>
-
-          <button
-            type="button"
-            onClick={() => navigateTo("/Admin")}
-            className="cursor-pointer px-1 py-2 text-sm font-bold text-white transition-all duration-300 hover:scale-110 hover:text-red-400 sm:text-base"
-          >
-            Admin
-          </button>
-
-          <button
-            type="button"
-            onClick={() => navigateTo("/profile/orders")}
-            className="cursor-pointer px-1 py-2 text-sm font-bold text-white transition-all duration-300 hover:scale-110 hover:text-red-400 sm:text-base"
-          >
-            My Orders
-          </button>
-
-          <button
-            type="button"
-            onClick={() => navigateTo("/cart")}
-            className="relative cursor-pointer rounded-2xl border border-red-900/60 bg-[#120000] px-3 py-2 text-xl shadow-lg transition-all duration-300 hover:-translate-y-1 hover:scale-110 hover:border-red-500 hover:bg-[#220000] sm:px-4 sm:text-2xl"
-            title="Cart"
-          >
-            🛒
-            {cartCount > 0 ? (
-              <span className="absolute -right-2 -top-2 flex h-6 min-w-6 items-center justify-center rounded-full bg-red-600 px-2 text-xs font-black text-white shadow-lg">
-                {cartCount}
+          <div className="hidden items-center gap-1 lg:flex">
+            {restaurant ? (
+              <span
+                title={restaurant.message}
+                className={`me-2 rounded-full px-3 py-2 text-xs font-black ${
+                  restaurant.isOpen
+                    ? "bg-green-500/15 text-green-300"
+                    : "bg-red-500/15 text-red-300"
+                }`}
+              >
+                <span
+                  className={`me-1.5 inline-block h-2 w-2 rounded-full ${restaurant.isOpen ? "bg-green-400" : "bg-red-400"}`}
+                />
+                {restaurant.isOpen ? labels.open : labels.closed}
               </span>
             ) : null}
-          </button>
 
-          <button
-            type="button"
-            onClick={logout}
-            className="cursor-pointer rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white transition-all duration-300 hover:-translate-y-1 hover:scale-105 hover:bg-red-700 sm:px-5 sm:text-base"
-          >
-            Logout
-          </button>
+            {navigation}
+
+            {isHome ? (
+              <button
+                type="button"
+                onClick={toggleLanguage}
+                className="mx-1 rounded-xl border border-white/15 px-3 py-2.5 text-sm font-black text-white transition hover:border-red-400 hover:text-red-300"
+                aria-label="Switch page language"
+              >
+                <span aria-hidden="true">🌐</span> {labels.language}
+              </button>
+            ) : null}
+
+            <button
+              type="button"
+              onClick={openCart}
+              className="relative mx-1 flex h-11 w-11 items-center justify-center rounded-xl border border-red-900/60 bg-[#170303] text-xl transition hover:border-red-500 hover:bg-[#260606]"
+              title={labels.cart}
+              aria-label={labels.cart}
+            >
+              🛒
+              {cartCount > 0 && session ? (
+                <span className="absolute -right-2 -top-2 flex h-6 min-w-6 items-center justify-center rounded-full bg-red-600 px-1.5 text-xs font-black text-white">
+                  {cartCount}
+                </span>
+              ) : null}
+            </button>
+
+            {accountAction}
+          </div>
+
+          <div className="flex items-center gap-2 lg:hidden">
+            {isHome ? (
+              <button
+                type="button"
+                onClick={toggleLanguage}
+                className="rounded-xl border border-white/15 px-2.5 py-2 text-xs font-black"
+                aria-label="Switch page language"
+              >
+                {labels.language}
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={openCart}
+              className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-red-900/60 bg-[#170303] text-lg"
+              aria-label={labels.cart}
+            >
+              🛒
+              {cartCount > 0 && session ? (
+                <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-black">
+                  {cartCount}
+                </span>
+              ) : null}
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen((open) => !open)}
+              className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 text-xl"
+              aria-label={mobileMenuOpen ? labels.closeMenu : labels.openMenu}
+              aria-expanded={mobileMenuOpen}
+            >
+              {mobileMenuOpen ? "×" : "☰"}
+            </button>
+          </div>
         </div>
+
+        {mobileMenuOpen ? (
+          <div className="border-t border-white/10 py-3 lg:hidden">
+            {restaurant ? (
+              <div
+                className={`mb-3 flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold ${
+                  restaurant.isOpen
+                    ? "bg-green-500/10 text-green-300"
+                    : "bg-red-500/10 text-red-300"
+                }`}
+              >
+                <span
+                  className={`h-2 w-2 rounded-full ${restaurant.isOpen ? "bg-green-400" : "bg-red-400"}`}
+                />
+                {restaurant.isOpen ? labels.open : labels.closed}
+              </div>
+            ) : null}
+            <div className="grid grid-cols-2 gap-2 text-center">
+              {navigation}
+            </div>
+            <div className="mt-3 border-t border-white/10 pt-3">
+              <div className="flex w-full justify-stretch [&>*]:w-full">
+                {accountAction}
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
     </nav>
   );

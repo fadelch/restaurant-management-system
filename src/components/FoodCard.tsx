@@ -5,6 +5,7 @@ import type { FoodItem } from "@/types";
 import { formatUsdWithLbp } from "@/lib/currency";
 import { useCart } from "@/context/CartContext";
 import { useRouter } from "next/navigation";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface FoodCardProps {
   food: FoodItem;
@@ -23,6 +24,7 @@ export default function FoodCard({
   const [favoriteLoading, setFavoriteLoading] = useState(false);
   const { addToCart } = useCart();
   const router = useRouter();
+  const { copy } = useLanguage();
 
   const inStock = food.qty > 0;
   const price = formatUsdWithLbp(food.price);
@@ -57,7 +59,9 @@ export default function FoodCard({
               <span className="text-3xl sm:text-4xl">🍽️</span>
             </div>
 
-            <p className="mt-3 text-sm font-bold sm:mt-4">No image available</p>
+            <p className="mt-3 text-sm font-bold sm:mt-4">
+              {copy.card.noImage}
+            </p>
           </div>
         )}
 
@@ -92,15 +96,17 @@ export default function FoodCard({
             }}
             aria-label={
               isFavorite
-                ? `Remove ${food.name} from favorites`
-                : `Add ${food.name} to favorites`
+                ? `${copy.card.removeFavorite}: ${food.name}`
+                : `${copy.card.addFavorite}: ${food.name}`
             }
             className={`absolute bottom-3 right-3 flex h-11 w-11 items-center justify-center rounded-full border text-2xl shadow-lg transition hover:scale-110 disabled:opacity-60 sm:bottom-4 sm:right-4 ${
               isFavorite
                 ? "border-red-500 bg-red-600 text-white"
                 : "border-white/50 bg-black/70 text-white"
             }`}
-            title={isFavorite ? "Remove from favorites" : "Add to favorites"}
+            title={
+              isFavorite ? copy.card.removeFavorite : copy.card.addFavorite
+            }
           >
             {isFavorite ? "♥" : "♡"}
           </button>
@@ -113,12 +119,12 @@ export default function FoodCard({
         </h4>
 
         <p className="mb-3 text-sm font-bold text-red-600">
-          Click the card to customize ingredients
+          {copy.card.customize}
         </p>
 
         <div className="mb-4 flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center sm:gap-4">
           <span className="font-semibold text-neutral-600">
-            Quantity: {food.qty}
+            {copy.card.quantity}: {food.qty}
           </span>
 
           <span
@@ -128,16 +134,16 @@ export default function FoodCard({
                 : "bg-red-100 text-red-700"
             }`}
           >
-            {inStock ? "In Stock" : "Out of Stock"}
+            {inStock ? copy.card.inStock : copy.card.outOfStock}
           </span>
         </div>
 
         <button
           type="button"
           disabled={!inStock}
-          onClick={(event) => {
+          onClick={async (event) => {
             event.stopPropagation();
-            addToCart(food);
+            await addToCart(food);
           }}
           className={`w-full rounded-2xl py-3 font-bold transition-all duration-300 ${
             inStock
@@ -145,7 +151,7 @@ export default function FoodCard({
               : "cursor-not-allowed bg-neutral-200 text-neutral-500"
           }`}
         >
-          {inStock ? "Add to Cart" : "Unavailable"}
+          {inStock ? copy.card.add : copy.card.unavailable}
         </button>
       </div>
     </div>

@@ -73,7 +73,14 @@ export default function Page() {
       }
 
       showMessage("Login successful!");
-      router.push("/");
+      const requestedPath = new URLSearchParams(window.location.search).get(
+        "next",
+      );
+      const safePath =
+        requestedPath?.startsWith("/") && !requestedPath.startsWith("//")
+          ? requestedPath
+          : "/";
+      router.push(safePath);
     } catch (err) {
       console.log("Error logging in user:", err);
 
@@ -203,6 +210,13 @@ export default function Page() {
                 Create account
               </a>
             </p>
+
+            <a
+              href="/"
+              className="mt-4 block text-center text-sm font-bold text-gray-400 transition hover:text-white"
+            >
+              Continue browsing as a guest
+            </a>
           </form>
         </div>
       </div>

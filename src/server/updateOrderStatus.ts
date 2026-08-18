@@ -134,6 +134,16 @@ export async function updateOrderStatus(data: { id: string; status: string }) {
         },
         data: {
           status: newStatus,
+          paymentStatus:
+            existingOrder.paymentStatus === "refunded"
+              ? "refunded"
+              : newStatus === "cancelled"
+                ? "cancelled"
+                : newStatus === "done"
+                  ? "done"
+                  : oldStatus === "cancelled" && newStatus !== "cancelled"
+                    ? "pending"
+                    : existingOrder.paymentStatus,
           stockReturned:
             newStatus === "cancelled"
               ? true
@@ -156,7 +166,16 @@ export async function updateOrderStatus(data: { id: string; status: string }) {
       action: "UPDATE_ORDER_STATUS",
       entityType: "Order",
       entityId: id,
-      changes: { before: { status: oldStatus }, after: { status: newStatus } },
+      changes: {
+        before: {
+          status: oldStatus,
+          paymentStatus: existingOrder.paymentStatus,
+        },
+        after: {
+          status: newStatus,
+          paymentStatus: updatedOrder.paymentStatus,
+        },
+      },
     });
 
     return updatedOrder;

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { CartProvider } from "@/context/CartContext";
 import MessageProvider from "@/components/MessageProvider";
+import { LanguageProvider } from "@/context/LanguageContext";
 
 export const metadata: Metadata = {
   title: "Restaurant",
@@ -16,9 +17,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <MessageProvider>
-          <CartProvider>{children}</CartProvider>
-        </MessageProvider>
+        <LanguageProvider>
+          <MessageProvider>
+            <CartProvider>{children}</CartProvider>
+          </MessageProvider>
+        </LanguageProvider>
       </body>
     </html>
   );

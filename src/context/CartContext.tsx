@@ -1,12 +1,14 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { FoodItem } from "@/types";
 import { showMessage } from "@/components/MessageProvider";
 import {
   normalizeOptionalIngredients,
   type OptionalIngredient,
 } from "@/lib/foodOptions";
+import { getCurrentSession } from "@/server/authActions";
 
 export type CartCustomization = {
   extraCheese: boolean;
@@ -29,7 +31,7 @@ type CartContextType = {
   addToCart: (
     food: FoodItem,
     customization?: Partial<CartCustomization>,
-  ) => void;
+  ) => Promise<boolean>;
   increaseCartItem: (cartKey: string) => void;
   updateCartItemCustomization: (
     cartKey: string,
@@ -100,6 +102,7 @@ function buildCartItem(
 }
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
 
   useEffect(() => {
@@ -125,23 +128,36 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem("cartItems", JSON.stringify(cartItems));
   }, [cartItems]);
 
-  const addToCart = (
+  const addToCart = async (
     food: FoodItem,
     customization?: Partial<CartCustomization>,
   ) => {
+    const session = await getCurrentSession();
+    if (!session) {
+      showMessage("Please log in before adding food to your cart.");
+      const nextPath =
+        window.location.pathname === "/"
+          ? "/#menu"
+          : `${window.location.pathname}${window.location.hash}`;
+      router.push(`/login?next=${encodeURIComponent(nextPath)}`);
+      return false;
+    }
+
     if (food.qty <= 0) {
       showMessage("This item is out of stock.");
-      return;
+      return false;
     }
+
+    const totalFoodQuantity = cartItems
+      .filter((item) => item.id === food.id)
+      .reduce((total, item) => total + item.cartQty, 0);
+    if (totalFoodQuantity >= food.qty) {
+      showMessage(`Only ${food.qty} item(s) available in stock.`);
+      return false;
+    }
+
     const nextItem = buildCartItem(food, 1, customization);
     setCartItems((current) => {
-      const totalFoodQuantity = current
-        .filter((item) => item.id === food.id)
-        .reduce((total, item) => total + item.cartQty, 0);
-      if (totalFoodQuantity >= food.qty) {
-        showMessage(`Only ${food.qty} item(s) available in stock.`);
-        return current;
-      }
       const existing = current.find(
         (item) => item.cartKey === nextItem.cartKey,
       );
@@ -154,6 +170,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       }
       return [...current, nextItem];
     });
+    return true;
   };
 
   const increaseCartItem = (key: string) => {

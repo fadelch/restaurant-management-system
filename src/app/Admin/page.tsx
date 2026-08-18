@@ -9,6 +9,7 @@ import FoodTable from "@/components/FoodTable";
 import FoodTypeTable from "@/components/FoodTypeTable";
 import OrderTable from "@/components/OrderTable";
 import OrderItemsTable from "@/components/OrderItemsTable";
+import FoodIssueReports from "@/components/FoodIssueReports";
 
 export default function Page() {
   const router = useRouter();
@@ -130,6 +131,7 @@ export default function Page() {
         </section>
 
         <section className="min-w-0 space-y-10">
+          <FoodIssueReports />
           <UsersTable isSuperAdmin={isSuperAdmin} />
           <FoodTable />
           <FoodTypeTable />

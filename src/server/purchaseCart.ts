@@ -31,8 +31,6 @@ const purchaseSchema = z.object({
   customerName: z.string().trim().min(2).max(100),
   customerPhone: z.string().trim().min(6).max(30),
   fulfillmentType: z.enum(["delivery", "pickup"]),
-  paymentMethod: z.enum(["Pay on Delivery", "Whish Money", "PayPal", "Card"]),
-  paymentCode: z.string().trim().max(100).optional(),
   customerAddress: z.string().trim().max(500).optional(),
   mapLocation: z.string().trim().max(500).optional(),
   orderNotes: z.string().trim().max(500).optional(),
@@ -51,8 +49,6 @@ export async function purchaseCart(input: z.input<typeof purchaseSchema>) {
     throw new Error("Delivery address is required.");
   if (data.fulfillmentType === "delivery" && !data.deliveryZoneId)
     throw new Error("Select a delivery area.");
-  if (data.paymentMethod !== "Pay on Delivery" && !data.paymentCode)
-    throw new Error("Payment code is required for this payment method.");
   const ids = [...new Set(data.items.map((item) => item.id))];
   const foods = await prisma.food.findMany({
     where: { id: { in: ids } },
@@ -166,8 +162,9 @@ export async function purchaseCart(input: z.input<typeof purchaseSchema>) {
         customerName: data.customerName,
         customerPhone: data.customerPhone,
         fulfillmentType: data.fulfillmentType,
-        paymentMethod: data.paymentMethod,
-        paymentCode: data.paymentCode || null,
+        paymentMethod: "Pay on Delivery",
+        paymentCode: null,
+        paymentStatus: "pending",
         customerAddress:
           data.fulfillmentType === "delivery" ? data.customerAddress : null,
         mapLocation:
