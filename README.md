@@ -84,7 +84,7 @@ public/
 Clone the repository:
 
 ```bash
-git clone https://github.com/Fadelchaaban/restaurant-ordering-system.git
+git clone https://github.com/Fadelch/restaurant-ordering-system.git
 ```
 
 Open the project:
