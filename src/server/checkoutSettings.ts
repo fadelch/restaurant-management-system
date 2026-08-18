@@ -1,0 +1,22 @@
+"use server";
+
+import prisma from "@/lib/prisma";
+import { getRestaurantStatus } from "@/lib/restaurantHours";
+
+export async function getCheckoutSettings() {
+  const [restaurant, zones] = await Promise.all([
+    getRestaurantStatus(),
+    prisma.deliveryZone.findMany({
+      where: { isAvailable: true },
+      orderBy: { name: "asc" },
+      select: {
+        id: true,
+        name: true,
+        deliveryFee: true,
+        minimumOrder: true,
+        estimatedMinutes: true,
+      },
+    }),
+  ]);
+  return { restaurant, zones };
+}
