@@ -22,9 +22,21 @@ orders, analytics, and audit records.
 
 ![Shopping cart](docs/screenshots/cart.png)
 
+### Cash-on-Delivery Checkout
+
+![Cash-on-delivery checkout](docs/screenshots/checkout.png)
+
+### Customer Refund Request
+
+![Customer food issue and refund request](docs/screenshots/refund-request.png)
+
 ### Admin Dashboard
 
 ![Admin dashboard](docs/screenshots/admin.png)
+
+### Restaurant Operations
+
+![Delivery zones and overnight opening hours](docs/screenshots/operations.png)
 
 ## Main Features
 
