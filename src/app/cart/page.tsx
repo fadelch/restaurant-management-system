@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import Nav_bar from "@/components/nav_bar";
 import CartCheckoutDialog from "@/components/CartCheckoutDialog";
@@ -84,12 +85,14 @@ export default function CartPage() {
                     className="rounded-2xl border border-white/10 bg-[#111] p-3 shadow-lg sm:p-4"
                   >
                     <div className="grid min-w-0 grid-cols-[84px_minmax(0,1fr)] gap-3 sm:grid-cols-[112px_minmax(0,1fr)_120px] sm:gap-4">
-                      <div className="h-24 overflow-hidden rounded-xl bg-neutral-800 sm:h-28">
+                      <div className="relative h-24 overflow-hidden rounded-xl bg-neutral-800 sm:h-28">
                         {item.image ? (
-                          <img
+                          <Image
                             src={item.image}
                             alt={item.name}
-                            className="h-full w-full object-cover"
+                            fill
+                            sizes="(min-width: 640px) 112px, 84px"
+                            className="object-cover"
                           />
                         ) : (
                           <div className="flex h-full items-center justify-center text-3xl">

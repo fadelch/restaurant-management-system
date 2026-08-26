@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { signupUser } from "@/server/signupUser";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -88,9 +89,11 @@ export default function Page() {
     <div className="min-h-dvh bg-[#120000] text-white">
       <div className="grid min-h-dvh grid-cols-1 overflow-x-hidden lg:grid-cols-2">
         <div className="relative hidden lg:block">
-          <img
+          <Image
             src="/Logo.png"
             alt="Logo"
+            fill
+            sizes="50vw"
             className="h-full w-full object-cover"
           />
 
@@ -108,9 +111,11 @@ export default function Page() {
         </div>
 
         <div className="relative flex items-center justify-center px-3 py-6 sm:px-6 sm:py-10">
-          <img
+          <Image
             src="/n.jpg"
             alt="Background"
+            fill
+            sizes="(min-width: 1024px) 50vw, 100vw"
             className="absolute inset-0 h-full w-full object-cover"
           />
 

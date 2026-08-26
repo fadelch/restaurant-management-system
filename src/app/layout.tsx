@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { CartProvider } from "@/context/CartContext";
-import MessageProvider from "@/components/MessageProvider";
-import { LanguageProvider } from "@/context/LanguageContext";
+import AppProviders from "@/components/providers/AppProviders";
 
 export const metadata: Metadata = {
   title: "Restaurant",
@@ -15,13 +13,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" dir="ltr" data-scroll-behavior="smooth">
       <body>
-        <LanguageProvider>
-          <MessageProvider>
-            <CartProvider>{children}</CartProvider>
-          </MessageProvider>
-        </LanguageProvider>
+        <AppProviders>{children}</AppProviders>
       </body>
     </html>
   );

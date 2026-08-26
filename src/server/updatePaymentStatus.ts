@@ -22,38 +22,38 @@ export async function updatePaymentStatus(
   const parsed = updatePaymentSchema.safeParse(input);
   if (!parsed.success) throw new Error(validationMessage(parsed.error));
 
-  const existingOrder = await prisma.order.findUnique({
-    where: { id: parsed.data.id },
-  });
-  if (!existingOrder) throw new Error("Order not found.");
-
-  const refundedAmount =
-    parsed.data.paymentStatus === "refunded"
-      ? existingOrder.refundedAmount || existingOrder.total
-      : existingOrder.refundedAmount;
-  const updated = await prisma.order.update({
-    where: { id: existingOrder.id },
-    data: {
-      paymentStatus: parsed.data.paymentStatus,
-      refundedAmount,
-    },
-  });
-
-  await writeAuditLog(actor, {
-    action: "UPDATE_PAYMENT_STATUS",
-    entityType: "Order",
-    entityId: existingOrder.id,
-    changes: {
-      before: {
-        paymentStatus: existingOrder.paymentStatus,
-        refundedAmount: existingOrder.refundedAmount,
+  return prisma.$transaction(async (tx) => {
+    const existingOrder = await tx.order.findUnique({
+      where: { id: parsed.data.id },
+    });
+    if (!existingOrder) throw new Error("Order not found.");
+    const refundedAmount =
+      parsed.data.paymentStatus === "refunded"
+        ? existingOrder.refundedAmount || existingOrder.total
+        : existingOrder.refundedAmount;
+    const updated = await tx.order.update({
+      where: { id: existingOrder.id },
+      data: { paymentStatus: parsed.data.paymentStatus, refundedAmount },
+    });
+    await writeAuditLog(
+      actor,
+      {
+        action: "UPDATE_PAYMENT_STATUS",
+        entityType: "Order",
+        entityId: existingOrder.id,
+        changes: {
+          before: {
+            paymentStatus: existingOrder.paymentStatus,
+            refundedAmount: existingOrder.refundedAmount,
+          },
+          after: {
+            paymentStatus: updated.paymentStatus,
+            refundedAmount: updated.refundedAmount,
+          },
+        },
       },
-      after: {
-        paymentStatus: updated.paymentStatus,
-        refundedAmount: updated.refundedAmount,
-      },
-    },
+      tx,
+    );
+    return updated;
   });
-
-  return updated;
 }

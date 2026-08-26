@@ -2,6 +2,7 @@
 
 import prisma from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
+import { adminOrderInclude } from "@/lib/prismaSelects";
 
 export async function getOrders() {
   await requireAdmin();
@@ -10,14 +11,7 @@ export async function getOrders() {
       orderBy: {
         createdAt: "desc",
       },
-      include: {
-        user: true,
-        items: {
-          include: {
-            food: true,
-          },
-        },
-      },
+      include: adminOrderInclude,
     });
   } catch (err) {
     console.log("Error fetching orders:", err);

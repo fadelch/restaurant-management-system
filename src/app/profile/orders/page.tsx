@@ -7,7 +7,7 @@ import { showMessage } from "@/components/MessageProvider";
 import { useCart } from "@/context/CartContext";
 import { formatUsdWithLbp } from "@/lib/currency";
 import { getCustomerOrders } from "@/server/getCustomerOrders";
-import type { Order } from "@/types";
+import type { CustomerOrder } from "@/types";
 import { normalizeOptionalIngredients } from "@/lib/foodOptions";
 import { getCurrentSession } from "@/server/authActions";
 import FoodIssueReportPanel from "@/components/FoodIssueReportPanel";
@@ -33,7 +33,7 @@ function paymentStatusClass(status: string) {
 export default function CustomerOrdersPage() {
   const router = useRouter();
   const { reorderItems } = useCart();
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [orders, setOrders] = useState<CustomerOrder[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -48,7 +48,7 @@ export default function CustomerOrdersPage() {
 
       try {
         const data = await getCustomerOrders(session.email);
-        setOrders((data as Order[]) || []);
+        setOrders(data);
       } catch (error) {
         showMessage(
           error instanceof Error ? error.message : "Failed to load orders.",
@@ -61,7 +61,7 @@ export default function CustomerOrdersPage() {
     loadOrders();
   }, [router]);
 
-  const reorder = (order: Order) => {
+  const reorder = (order: CustomerOrder) => {
     const items = (order.items || []).flatMap((item) =>
       item.food
         ? [

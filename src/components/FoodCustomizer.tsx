@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import type { FoodItem } from "@/types";
 import { useCart } from "@/context/CartContext";
@@ -81,12 +82,15 @@ export default function FoodCustomizer({ food }: { food: FoodItem }) {
       </button>
 
       <section className="grid overflow-hidden rounded-3xl border border-red-900/50 bg-[#130000] shadow-2xl lg:grid-cols-2">
-        <div className="min-h-80 bg-neutral-900 lg:min-h-[650px]">
+        <div className="relative min-h-80 bg-neutral-900 lg:min-h-[650px]">
           {food.image ? (
-            <img
+            <Image
               src={food.image}
               alt={food.name}
-              className="h-full min-h-80 w-full object-cover lg:min-h-[650px]"
+              fill
+              priority
+              sizes="(min-width: 1024px) 50vw, 100vw"
+              className="object-cover"
             />
           ) : (
             <div className="flex h-full min-h-80 items-center justify-center text-7xl">

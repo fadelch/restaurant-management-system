@@ -10,10 +10,10 @@ import {
 import AdminPageControls from "@/components/AdminPageControls";
 import { showMessage } from "@/components/MessageProvider";
 import { formatUsdWithLbp } from "@/lib/currency";
-import type { OrderItem } from "@/types";
+import type { AdminOrder } from "@/types";
 import { normalizeOptionalIngredients } from "@/lib/foodOptions";
 
-type FinishedOrderItem = OrderItem & {
+type FinishedOrderItem = AdminOrder["items"][number] & {
   orderStatus: string;
   orderUserEmail?: string | null;
   orderCreatedAt?: string | Date;
@@ -79,7 +79,7 @@ export default function OrderItemsTable() {
         }));
       });
 
-      setItems((finishedItems as FinishedOrderItem[]) || []);
+      setItems(finishedItems);
       setPages(result.pages);
       setFinishedCount(result.total);
       setArchivedCount(result.archivedTotal);

@@ -37,6 +37,14 @@ export async function updateUserBan(data: {
       data: {
         isBanned: data.ban,
       },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        isAdmin: true,
+        isBanned: true,
+        createdAt: true,
+      },
     });
     await writeAuditLog(actor, {
       action: data.ban ? "BAN_USER" : "UNBAN_USER",

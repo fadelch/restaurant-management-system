@@ -3,6 +3,8 @@
 import { Login_User } from "@/server/Login_User";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import Link from "next/link";
+import Image from "next/image";
 import { showMessage } from "@/components/MessageProvider";
 
 export default function Page() {
@@ -45,15 +47,17 @@ export default function Page() {
       setLoading(true);
       clearSession();
 
-      const user = await Login_User({
+      const result = await Login_User({
         email,
         password,
       });
 
-      if (!user || !user.email) {
-        showMessage("Invalid email or password");
+      if (!result.success) {
+        setFormError(result.error);
+        showMessage(result.error);
         return;
       }
+      const { user } = result;
 
       sessionStorage.setItem("userEmail", user.email);
 
@@ -99,9 +103,11 @@ export default function Page() {
     <div className="min-h-dvh bg-[#120000] text-white">
       <div className="grid min-h-dvh grid-cols-1 overflow-x-hidden lg:grid-cols-2">
         <div className="relative hidden lg:block">
-          <img
+          <Image
             src="/m.jpg"
             alt="Login banner"
+            fill
+            sizes="50vw"
             className="h-full w-full object-cover"
           />
 
@@ -119,9 +125,11 @@ export default function Page() {
         </div>
 
         <div className="relative flex items-center justify-center px-3 py-6 sm:px-6 sm:py-10">
-          <img
+          <Image
             src="/n.jpg"
             alt="Background"
+            fill
+            sizes="(min-width: 1024px) 50vw, 100vw"
             className="absolute inset-0 h-full w-full object-cover"
           />
 
@@ -203,20 +211,20 @@ export default function Page() {
 
             <p className="mt-6 text-center text-sm text-gray-300">
               Don&apos;t have an account?{" "}
-              <a
+              <Link
                 href="/signup"
                 className="font-bold text-red-400 hover:underline"
               >
                 Create account
-              </a>
+              </Link>
             </p>
 
-            <a
+            <Link
               href="/"
               className="mt-4 block text-center text-sm font-bold text-gray-400 transition hover:text-white"
             >
               Continue browsing as a guest
-            </a>
+            </Link>
           </form>
         </div>
       </div>

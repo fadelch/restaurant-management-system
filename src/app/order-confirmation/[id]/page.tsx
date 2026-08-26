@@ -6,14 +6,14 @@ import Nav_bar from "@/components/nav_bar";
 import { showMessage } from "@/components/MessageProvider";
 import { formatUsdWithLbp } from "@/lib/currency";
 import { getCustomerOrderById } from "@/server/getCustomerOrders";
-import type { Order } from "@/types";
+import type { CustomerOrder } from "@/types";
 import { normalizeOptionalIngredients } from "@/lib/foodOptions";
 
 export default function OrderConfirmationPage() {
-  const params = useParams();
+  const params = useParams<{ id: string }>();
   const router = useRouter();
-  const orderId = params.id as string;
-  const [order, setOrder] = useState<Order | null>(null);
+  const orderId = params.id;
+  const [order, setOrder] = useState<CustomerOrder | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -34,7 +34,7 @@ export default function OrderConfirmationPage() {
           return;
         }
 
-        setOrder(data as Order);
+        setOrder(data);
       } catch (error) {
         showMessage(
           error instanceof Error ? error.message : "Failed to load order.",

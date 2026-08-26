@@ -6,7 +6,7 @@ import { getFoodById } from "@/server/getFoodById";
 import { updateFood } from "@/server/updateFood";
 import { getFoodTypes } from "@/server/getFoodTypes";
 import { formatUsdWithLbp } from "@/lib/currency";
-import type { FoodType } from "@/types";
+import type { FoodTypeSummary } from "@/types";
 import { showMessage } from "@/components/MessageProvider";
 import FoodImageUpload from "@/components/FoodImageUpload";
 import FoodIngredientsEditor from "@/components/FoodIngredientsEditor";
@@ -17,9 +17,9 @@ import {
 
 export default function UpdateFoodPage() {
   const router = useRouter();
-  const params = useParams();
+  const params = useParams<{ id: string }>();
 
-  const id = params.id as string;
+  const id = params.id;
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -33,7 +33,7 @@ export default function UpdateFoodPage() {
   const [minStock, setMinStock] = useState("5");
   const [image, setImage] = useState("");
   const [typeId, setTypeId] = useState("");
-  const [foodTypes, setFoodTypes] = useState<FoodType[]>([]);
+  const [foodTypes, setFoodTypes] = useState<FoodTypeSummary[]>([]);
   const [loading, setLoading] = useState(false);
 
   const parsedPrice = Number(price);
@@ -72,7 +72,7 @@ export default function UpdateFoodPage() {
         setMinStock(String(food.minStock ?? 5));
         setImage(food.image || "");
         setTypeId(food.typeId);
-        setFoodTypes((types as FoodType[]) || []);
+        setFoodTypes(types);
       } catch (err) {
         console.log("Error loading food:", err);
         showMessage("Food not found.");

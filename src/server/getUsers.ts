@@ -2,6 +2,7 @@
 
 import prisma from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
+import { managedUserSelect } from "@/lib/prismaSelects";
 
 export async function getUsers() {
   await requireAdmin();
@@ -10,15 +11,7 @@ export async function getUsers() {
       orderBy: {
         createdAt: "desc",
       },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        isAdmin: true,
-        isBanned: true,
-        createdAt: true,
-        orders: { select: { id: true } },
-      },
+      select: managedUserSelect,
     });
   } catch (err) {
     console.log("Error fetching users:", err);

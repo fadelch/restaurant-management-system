@@ -7,6 +7,7 @@ import { requireUser } from "@/lib/auth";
 import { getRestaurantStatus } from "@/lib/restaurantHours";
 import { idSchema, validationMessage } from "@/lib/validation";
 import { normalizeOptionalIngredients } from "@/lib/foodOptions";
+import { publicUserSelect } from "@/lib/prismaSelects";
 
 const purchaseSchema = z.object({
   items: z
@@ -56,8 +57,9 @@ export async function purchaseCart(input: z.input<typeof purchaseSchema>) {
   });
   if (foods.length !== ids.length)
     throw new Error("Some food items were not found.");
+  const foodsById = new Map(foods.map((food) => [food.id, food]));
   const lineDetails = data.items.map((item) => {
-    const food = foods.find((entry) => entry.id === item.id);
+    const food = foodsById.get(item.id);
     if (!food) throw new Error("Food item was not found.");
     const allowedIngredients = new Set(food.ingredients);
     const removedIngredients = [...new Set(item.removedIngredients)];
@@ -93,12 +95,18 @@ export async function purchaseCart(input: z.input<typeof purchaseSchema>) {
     (sum, line) => sum + line.unitPrice * line.item.cartQty,
     0,
   );
-  const zone =
+  const [zone, requestedCoupon] = await Promise.all([
     data.fulfillmentType === "delivery"
-      ? await prisma.deliveryZone.findUnique({
+      ? prisma.deliveryZone.findUnique({
           where: { id: data.deliveryZoneId! },
         })
-      : null;
+      : Promise.resolve(null),
+    data.couponCode
+      ? prisma.coupon.findUnique({
+          where: { code: data.couponCode.toUpperCase() },
+        })
+      : Promise.resolve(null),
+  ]);
   if (data.fulfillmentType === "delivery" && (!zone || !zone.isAvailable))
     throw new Error("This delivery area is not available.");
   if (zone && subtotal < zone.minimumOrder)
@@ -108,9 +116,7 @@ export async function purchaseCart(input: z.input<typeof purchaseSchema>) {
   let coupon = null;
   let discountAmount = 0;
   if (data.couponCode) {
-    coupon = await prisma.coupon.findUnique({
-      where: { code: data.couponCode.toUpperCase() },
-    });
+    coupon = requestedCoupon;
     if (!coupon || !coupon.isActive)
       throw new Error("This coupon is invalid or inactive.");
     if (coupon.expiresAt && coupon.expiresAt <= new Date())
@@ -228,7 +234,7 @@ export async function purchaseCart(input: z.input<typeof purchaseSchema>) {
     return tx.order.findUniqueOrThrow({
       where: { id: order.id },
       include: {
-        user: true,
+        user: { select: publicUserSelect },
         items: { include: { food: true } },
         deliveryZone: true,
       },

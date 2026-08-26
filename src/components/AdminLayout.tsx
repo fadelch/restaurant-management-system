@@ -1,6 +1,5 @@
 "use client";
 
-import Nav_bar from "@/components/nav_bar";
 import Footer from "@/components/Footer";
 import { useRouter } from "next/navigation";
 
@@ -14,8 +13,6 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
 
   return (
     <div className="flex min-h-screen flex-col bg-[#0a0a0a] text-white">
-      <Nav_bar />
-
       <main className="flex-1 px-3 pb-8 pt-8 sm:px-4 sm:pb-10 sm:pt-12 md:px-8 lg:pt-32">
         <div className="mx-auto max-w-7xl">
           <div className="rounded-2xl border border-neutral-800 bg-[#111111] p-4 shadow-xl sm:rounded-[2rem] sm:p-6 md:p-8">

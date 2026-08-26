@@ -1,38 +1,17 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { getUsers } from "@/server/getUsers";
 import { DeleteUsers } from "@/server/DeleteUsers";
 import AdminLayout from "@/components/AdminLayout";
 import UsersTable from "@/components/UsersTable";
 import { showMessage } from "@/components/MessageProvider";
 import { useConfirmDialog } from "@/components/ConfirmDialog";
+import type { ManagedUser } from "@/types";
 
 export default function Page() {
   const { confirm: askConfirmation, dialog } = useConfirmDialog();
-  const router = useRouter();
-
-  useEffect(() => {
-    const email = sessionStorage.getItem("Admin");
-
-    if (!email) {
-      router.push("/");
-    }
-  }, [router]);
-  type User = {
-    id: string;
-    name: string | null;
-    email: string | null;
-    password?: string | null;
-    confirm_password?: string | null;
-    isAdmin: boolean;
-    isBanned?: boolean;
-    createdAt: string | Date;
-    orders?: { id: string }[];
-  };
-
   const [selectedId, setSelectedId] = useState("");
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<ManagedUser[]>([]);
   useEffect(() => {
     const fetchUsers = async () => {
       try {

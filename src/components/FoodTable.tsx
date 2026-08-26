@@ -1,15 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Image from "next/image";
 import AnimatedSection from "@/components/AnimatedSection";
 import InsertButton from "@/components/InsertButton";
 import { getFoodsPage } from "@/server/adminData";
 import AdminPageControls from "@/components/AdminPageControls";
-import type { FoodItem } from "@/types";
+import type { AdminFoodItem } from "@/types";
 import { formatUsdWithLbp } from "@/lib/currency";
 
 export default function FoodTable() {
-  const [foods, setFoods] = useState<FoodItem[]>([]);
+  const [foods, setFoods] = useState<AdminFoodItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [pages, setPages] = useState(1);
@@ -34,7 +35,7 @@ export default function FoodTable() {
     setError("");
     try {
       const data = await getFoodsPage(query);
-      setFoods((data.items as FoodItem[]) || []);
+      setFoods(data.items);
       setPages(data.pages);
     } catch (err) {
       setError(
@@ -182,9 +183,12 @@ export default function FoodTable() {
 
                       <td className="px-5 py-4">
                         {food.image ? (
-                          <img
+                          <Image
                             src={food.image}
                             alt={food.name}
+                            width={56}
+                            height={56}
+                            sizes="56px"
                             className="h-14 w-14 rounded-xl object-cover"
                           />
                         ) : (

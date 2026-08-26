@@ -1,7 +1,6 @@
-export type OptionalIngredient = {
-  name: string;
-  price: number;
-};
+import type { OptionalIngredient } from "@/types/food";
+
+export type { OptionalIngredient } from "@/types/food";
 
 export function normalizeOptionalIngredients(
   value: unknown,

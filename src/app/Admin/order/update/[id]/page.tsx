@@ -7,14 +7,13 @@ import { updateOrderStatus } from "@/server/updateOrderStatus";
 import { formatUsdWithLbp } from "@/lib/currency";
 import { showMessage } from "@/components/MessageProvider";
 import { updatePaymentStatus } from "@/server/updatePaymentStatus";
-
-type PaymentStatus = "pending" | "done" | "cancelled" | "refunded";
+import { paymentStatusSchema } from "@/lib/validation";
+import type { PaymentStatus } from "@/types";
 
 export default function UpdateOrderPage() {
   const router = useRouter();
-  const params = useParams();
-
-  const id = params.id as string;
+  const params = useParams<{ id: string }>();
+  const id = params.id;
 
   const [status, setStatus] = useState("pending");
   const [paymentStatus, setPaymentStatus] =
@@ -40,7 +39,12 @@ export default function UpdateOrderPage() {
         }
 
         setStatus(order.status);
-        setPaymentStatus(order.paymentStatus as PaymentStatus);
+        const parsedPaymentStatus = paymentStatusSchema.safeParse(
+          order.paymentStatus,
+        );
+        if (parsedPaymentStatus.success) {
+          setPaymentStatus(parsedPaymentStatus.data);
+        }
         setRefundedAmount(order.refundedAmount);
         setUserEmail(order.user?.email || "");
         setTotal(order.total);
@@ -86,7 +90,12 @@ export default function UpdateOrderPage() {
     try {
       setPaymentLoading(true);
       const updated = await updatePaymentStatus({ id, paymentStatus });
-      setPaymentStatus(updated.paymentStatus as PaymentStatus);
+      const parsedPaymentStatus = paymentStatusSchema.safeParse(
+        updated.paymentStatus,
+      );
+      if (parsedPaymentStatus.success) {
+        setPaymentStatus(parsedPaymentStatus.data);
+      }
       setRefundedAmount(updated.refundedAmount);
       showMessage("Payment status updated successfully!");
       router.refresh();

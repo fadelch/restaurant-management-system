@@ -5,24 +5,26 @@ import AnimatedSection from "@/components/AnimatedSection";
 import { updateUserAdminAccess } from "@/server/updateUserAdminAccess";
 import { updateUserBan } from "@/server/updateUserBan";
 import { deleteUser } from "@/server/deleteUser";
-import type { User } from "@/types";
+import type { ManagedUser } from "@/types";
 import { showMessage } from "@/components/MessageProvider";
 import { useConfirmDialog } from "@/components/ConfirmDialog";
 import AdminPageControls from "@/components/AdminPageControls";
 import { getUsersPage } from "@/server/adminData";
 
 interface UsersTableProps {
-  users?: User[];
+  users?: ManagedUser[];
   isSuperAdmin?: boolean;
+  protectedUserId?: string | null;
 }
 
-const EMPTY_USERS: User[] = [];
+const EMPTY_USERS: ManagedUser[] = [];
 
 export default function UsersTable({
   users = EMPTY_USERS,
   isSuperAdmin = false,
+  protectedUserId = null,
 }: UsersTableProps) {
-  const [localUsers, setLocalUsers] = useState<User[]>(users);
+  const [localUsers, setLocalUsers] = useState<ManagedUser[]>(users);
   const [loadingUserId, setLoadingUserId] = useState<string | null>(null);
   const { confirm: askConfirmation, dialog } = useConfirmDialog();
   const [query, setQuery] = useState<{
@@ -49,7 +51,7 @@ export default function UsersTable({
     setTableError("");
     try {
       const result = await getUsersPage(query);
-      setLocalUsers(result.items as User[]);
+      setLocalUsers(result.items);
       setPages(result.pages);
     } catch (err) {
       setTableError(
@@ -88,11 +90,8 @@ export default function UsersTable({
     setLocalUsers(users);
   }, [users]);
 
-  const superAdminEmail =
-    typeof window !== "undefined" ? sessionStorage.getItem("SuperAdmin") : null;
-
-  const handleAdminChange = async (user: User, makeAdmin: boolean) => {
-    if (!superAdminEmail) {
+  const handleAdminChange = async (user: ManagedUser, makeAdmin: boolean) => {
+    if (!isSuperAdmin) {
       showMessage("Only the Super Admin can do this.");
       return;
     }
@@ -113,7 +112,6 @@ export default function UsersTable({
       setLoadingUserId(user.id);
 
       await updateUserAdminAccess({
-        requesterEmail: superAdminEmail,
         userId: user.id,
         makeAdmin,
       });
@@ -144,8 +142,8 @@ export default function UsersTable({
     }
   };
 
-  const handleBanChange = async (user: User, ban: boolean) => {
-    if (!superAdminEmail) {
+  const handleBanChange = async (user: ManagedUser, ban: boolean) => {
+    if (!isSuperAdmin) {
       showMessage("Only the Super Admin can do this.");
       return;
     }
@@ -164,7 +162,6 @@ export default function UsersTable({
       setLoadingUserId(user.id);
 
       await updateUserBan({
-        requesterEmail: superAdminEmail,
         userId: user.id,
         ban,
       });
@@ -197,8 +194,8 @@ export default function UsersTable({
     }
   };
 
-  const handleDeleteUser = async (user: User) => {
-    if (!superAdminEmail) {
+  const handleDeleteUser = async (user: ManagedUser) => {
+    if (!isSuperAdmin) {
       showMessage("Only the Super Admin can do this.");
       return;
     }
@@ -215,7 +212,6 @@ export default function UsersTable({
       setLoadingUserId(user.id);
 
       await deleteUser({
-        requesterEmail: superAdminEmail,
         userId: user.id,
       });
 
@@ -330,10 +326,7 @@ export default function UsersTable({
                   </tr>
                 ) : (
                   localUsers.map((user) => {
-                    const userIsSuperAdmin =
-                      superAdminEmail &&
-                      user.email?.toLowerCase() ===
-                        superAdminEmail.toLowerCase();
+                    const userIsSuperAdmin = user.id === protectedUserId;
 
                     const isLoading = loadingUserId === user.id;
 
