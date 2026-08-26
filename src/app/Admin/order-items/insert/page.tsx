@@ -3,19 +3,18 @@
 import { insert_order_item } from "@/server/insert_order_item";
 import { getFoods } from "@/server/getFoods";
 import { getOrders } from "@/server/getOrders";
-import type { FoodItem, Order } from "@/types";
+import type { AdminOrder, FoodItem } from "@/types";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { showMessage } from "@/components/MessageProvider";
 
 export default function Page() {
   const router = useRouter();
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [foods, setFoods] = useState<FoodItem[]>([]);
   const [orderId, setOrderId] = useState("");
   const [foodId, setFoodId] = useState("");
   const [quantity, setQuantity] = useState("1");
-  const [price, setPrice] = useState("");
   const [loading, setLoading] = useState(false);
 
   const inputClass =
@@ -28,8 +27,8 @@ export default function Page() {
           getOrders(),
           getFoods(),
         ]);
-        setOrders((ordersData as Order[]) || []);
-        setFoods((foodsData as FoodItem[]) || []);
+        setOrders(ordersData);
+        setFoods(foodsData);
       } catch (err) {
         console.log("Error fetching order item form data:", err);
       }
@@ -42,17 +41,10 @@ export default function Page() {
     return foods.find((food) => food.id === foodId) || null;
   }, [foods, foodId]);
 
-  useEffect(() => {
-    if (selectedFood) {
-      setPrice(String(selectedFood.price));
-    }
-  }, [selectedFood]);
-
   const clearFields = () => {
     setOrderId("");
     setFoodId("");
     setQuantity("1");
-    setPrice("");
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -64,18 +56,9 @@ export default function Page() {
     }
 
     const parsedQuantity = Number(quantity);
-    const parsedPrice = price ? Number(price) : undefined;
 
     if (Number.isNaN(parsedQuantity) || parsedQuantity <= 0) {
       showMessage("Quantity must be greater than 0.");
-      return;
-    }
-
-    if (
-      parsedPrice !== undefined &&
-      (Number.isNaN(parsedPrice) || parsedPrice <= 0)
-    ) {
-      showMessage("Price must be greater than 0.");
       return;
     }
 
@@ -85,14 +68,15 @@ export default function Page() {
         orderId,
         foodId,
         quantity: parsedQuantity,
-        price: parsedPrice,
       });
       showMessage("Order item inserted successfully!");
       router.push("/Admin");
       router.refresh();
     } catch (err) {
       console.log("Error inserting order item:", err);
-      showMessage("Failed to insert order item.");
+      showMessage(
+        err instanceof Error ? err.message : "Failed to insert order item.",
+      );
     } finally {
       setLoading(false);
     }
@@ -137,7 +121,7 @@ export default function Page() {
             ))}
           </select>
 
-          <div className="grid gap-4 md:grid-cols-2">
+          <div>
             <input
               type="number"
               min="1"
@@ -146,23 +130,13 @@ export default function Page() {
               placeholder="Quantity"
               className={inputClass}
             />
-
-            <input
-              type="number"
-              step="0.01"
-              min="0"
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-              placeholder="Price"
-              className={inputClass}
-            />
           </div>
 
           {selectedFood && (
             <div className="rounded-xl border border-white/10 bg-black/40 p-4 text-sm text-gray-300">
               Selected food:{" "}
               <span className="font-bold text-white">{selectedFood.name}</span>{" "}
-              | Stock: {selectedFood.qty}
+              | Stock: {selectedFood.qty} | Database price: ${selectedFood.price}
             </div>
           )}
 

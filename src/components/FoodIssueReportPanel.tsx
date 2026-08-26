@@ -4,7 +4,7 @@ import { useState } from "react";
 import { showMessage } from "@/components/MessageProvider";
 import { formatUsdWithLbp } from "@/lib/currency";
 import { submitFoodIssueReport } from "@/server/foodIssueReports";
-import type { FoodIssueReport } from "@/types";
+import type { FoodIssueReportItem } from "@/types";
 
 const reasons = [
   { value: "damaged", label: "Damaged food or packaging" },
@@ -39,7 +39,7 @@ export default function FoodIssueReportPanel({
   orderItemId: number;
   foodName: string;
   maxQuantity: number;
-  initialReports?: FoodIssueReport[];
+  initialReports?: FoodIssueReportItem[];
 }) {
   const [reports, setReports] = useState(initialReports);
   const [open, setOpen] = useState(false);
@@ -64,7 +64,7 @@ export default function FoodIssueReportPanel({
         details,
         quantity,
       });
-      setReports((current) => [report as FoodIssueReport, ...current]);
+      setReports((current) => [report, ...current]);
       setOpen(false);
       setDetails("");
       setQuantity(1);

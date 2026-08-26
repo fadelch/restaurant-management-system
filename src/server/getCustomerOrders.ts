@@ -3,25 +3,7 @@
 import prisma from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { idSchema, validationMessage } from "@/lib/validation";
-
-function orderInclude(userId: string) {
-  return {
-    user: true,
-    items: {
-      include: {
-        food: {
-          include: {
-            type: true,
-          },
-        },
-        issueReports: {
-          where: { userId },
-          orderBy: { createdAt: "desc" as const },
-        },
-      },
-    },
-  } as const;
-}
+import { customerOrderInclude } from "@/lib/prismaSelects";
 
 export async function getCustomerOrders(userEmail: string) {
   void userEmail;
@@ -31,7 +13,7 @@ export async function getCustomerOrders(userEmail: string) {
     where: {
       userId: user.id,
     },
-    include: orderInclude(user.id),
+    include: customerOrderInclude(user.id),
     orderBy: { createdAt: "desc" },
   });
 }
@@ -47,6 +29,6 @@ export async function getCustomerOrderById(orderId: string, userEmail: string) {
       id: parsed.data,
       userId: user.id,
     },
-    include: orderInclude(user.id),
+    include: customerOrderInclude(user.id),
   });
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import { getFoodById } from "@/server/getFoodById";
 import { deleteFood } from "@/server/deleteFood";
@@ -9,9 +10,9 @@ import { showMessage } from "@/components/MessageProvider";
 
 export default function DeleteFoodPage() {
   const router = useRouter();
-  const params = useParams();
+  const params = useParams<{ id: string }>();
 
-  const id = params.id as string;
+  const id = params.id;
 
   const [name, setName] = useState("");
   const [image, setImage] = useState<string | null>(null);
@@ -59,7 +60,7 @@ export default function DeleteFoodPage() {
       router.refresh();
     } catch (err) {
       console.log("Error deleting food:", err);
-      showMessage("Failed to delete food.");
+      showMessage(err instanceof Error ? err.message : "Failed to delete food.");
     } finally {
       setLoading(false);
     }
@@ -82,11 +83,16 @@ export default function DeleteFoodPage() {
 
         <div className="mt-6 rounded-2xl border border-red-900/60 bg-[#120000]/80 p-5">
           {image ? (
-            <img
-              src={image}
-              alt={name}
-              className="mb-5 h-40 w-full rounded-2xl object-cover"
-            />
+            <div className="relative mb-5 h-40 w-full overflow-hidden rounded-2xl">
+              <Image
+                src={image}
+                alt={name}
+                fill
+                priority
+                sizes="(min-width: 640px) 512px, calc(100vw - 5rem)"
+                className="object-cover"
+              />
+            </div>
           ) : null}
 
           <p className="text-sm text-gray-400">Food</p>

@@ -1,24 +1,22 @@
 "use server";
 
 import prisma from "@/lib/prisma";
+import { menuFoodInclude } from "@/lib/prismaSelects";
+import { idSchema, validationMessage } from "@/lib/validation";
 
 export async function getFoodById(id: string) {
   try {
-    if (!id) {
-      throw new Error("Food ID is required.");
-    }
+    const parsed = idSchema.safeParse(id);
+    if (!parsed.success) throw new Error(validationMessage(parsed.error));
 
     return await prisma.food.findUnique({
       where: {
-        id,
+        id: parsed.data,
       },
-      include: {
-        type: true,
-        orderItems: true,
-      },
+      include: menuFoodInclude,
     });
   } catch (err) {
     console.log("Error fetching food:", err);
-    throw new Error("Failed to fetch food.");
+    throw err;
   }
 }

@@ -125,67 +125,76 @@ export async function reviewFoodIssueReport(
   if (!parsed.success) throw new Error(validationMessage(parsed.error));
   const data = parsed.data;
 
-  const report = await prisma.foodIssueReport.findUnique({
-    where: { id: data.id },
-    include: { order: true, orderItem: { include: { food: true } } },
-  });
-  if (!report) throw new Error("Food issue report was not found.");
-  if (report.status !== "pending") {
-    throw new Error("This food issue report has already been reviewed.");
-  }
-
-  const maximumRefund = Math.min(
-    report.order.total,
-    report.orderItem.price * report.quantity,
-  );
-  const refundAmount =
-    data.status === "approved"
-      ? Math.round((data.refundAmount ?? maximumRefund) * 100) / 100
-      : 0;
-  if (refundAmount > maximumRefund) {
-    throw new Error(
-      `The refund cannot exceed $${maximumRefund.toFixed(2)} for the reported quantity.`,
-    );
-  }
-
-  const updated = await prisma.$transaction(async (tx) => {
-    const issue = await tx.foodIssueReport.update({
-      where: { id: report.id },
-      data: {
-        status: data.status,
-        refundAmount,
-        resolvedAt: new Date(),
-      },
-      include: { orderItem: { include: { food: true } } },
-    });
-
-    if (data.status === "approved") {
-      await tx.order.update({
-        where: { id: report.orderId },
+  return prisma.$transaction(
+    async (tx) => {
+      const report = await tx.foodIssueReport.findUnique({
+        where: { id: data.id },
+        include: { order: true, orderItem: { include: { food: true } } },
+      });
+      if (!report) throw new Error("Food issue report was not found.");
+      if (report.status !== "pending") {
+        throw new Error("This food issue report has already been reviewed.");
+      }
+      const maximumRefund = Math.min(
+        report.order.total,
+        report.orderItem.price * report.quantity,
+      );
+      const refundAmount =
+        data.status === "approved"
+          ? Math.round((data.refundAmount ?? maximumRefund) * 100) / 100
+          : 0;
+      if (refundAmount > maximumRefund) {
+        throw new Error(
+          `The refund cannot exceed $${maximumRefund.toFixed(2)} for the reported quantity.`,
+        );
+      }
+      const claimed = await tx.foodIssueReport.updateMany({
+        where: { id: report.id, status: "pending" },
         data: {
-          paymentStatus: "refunded",
-          refundedAmount: Math.min(
-            report.order.total,
-            report.order.refundedAmount + refundAmount,
-          ),
+          status: data.status,
+          refundAmount,
+          resolvedAt: new Date(),
         },
       });
-    }
-
-    return issue;
-  });
-
-  await writeAuditLog(actor, {
-    action: "REVIEW_FOOD_ISSUE",
-    entityType: "FoodIssueReport",
-    entityId: report.id,
-    changes: {
-      before: { status: report.status, refundAmount: report.refundAmount },
-      after: { status: data.status, refundAmount },
-      food: report.orderItem.food.name,
-      reason: report.reason,
+      if (claimed.count !== 1) {
+        throw new Error("This food issue report has already been reviewed.");
+      }
+      if (data.status === "approved") {
+        await tx.order.update({
+          where: { id: report.orderId },
+          data: {
+            paymentStatus: "refunded",
+            refundedAmount: Math.min(
+              report.order.total,
+              report.order.refundedAmount + refundAmount,
+            ),
+          },
+        });
+      }
+      const updated = await tx.foodIssueReport.findUniqueOrThrow({
+        where: { id: report.id },
+        include: { orderItem: { include: { food: true } } },
+      });
+      await writeAuditLog(
+        actor,
+        {
+          action: "REVIEW_FOOD_ISSUE",
+          entityType: "FoodIssueReport",
+          entityId: report.id,
+          changes: {
+            before: {
+              status: report.status,
+              refundAmount: report.refundAmount,
+            },
+            after: { status: data.status, refundAmount },
+            food: report.orderItem.food.name,
+            reason: report.reason,
+          },
+        },
+        tx,
+      );
+      return updated;
     },
-  });
-
-  return updated;
+    { isolationLevel: "Serializable" },
+  );
 }

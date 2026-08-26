@@ -1,4 +1,3 @@
-import Nav_bar from "@/components/nav_bar";
 import AdminDashboardStats from "@/components/AdminDashboardStats";
 import { getAdminDashboardStats } from "@/server/getAdminDashboardStats";
 
@@ -7,7 +6,6 @@ export default async function AdminAnalyticsPage() {
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white">
-      <Nav_bar />
       <main className="mx-auto max-w-[1600px] px-4 py-8 sm:px-6 lg:px-10">
         <section className="mb-8 rounded-2xl border border-red-900/50 bg-[#1a0000] p-6 shadow-2xl sm:p-8">
           <p className="text-sm font-black uppercase tracking-[0.25em] text-red-400">

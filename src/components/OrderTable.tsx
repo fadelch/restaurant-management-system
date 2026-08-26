@@ -5,7 +5,7 @@ import AnimatedSection from "@/components/AnimatedSection";
 import { getOrdersPage } from "@/server/adminData";
 import AdminPageControls from "@/components/AdminPageControls";
 import { formatUsdWithLbp } from "@/lib/currency";
-import type { Order } from "@/types";
+import type { AdminOrder } from "@/types";
 import { normalizeOptionalIngredients } from "@/lib/foodOptions";
 
 function normalizeStatus(status: string) {
@@ -23,7 +23,7 @@ function normalizeStatus(status: string) {
 }
 
 export default function OrderTable() {
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [pages, setPages] = useState(1);
@@ -48,7 +48,7 @@ export default function OrderTable() {
     setError("");
     try {
       const data = await getOrdersPage(query, false);
-      setOrders(data.items as Order[]);
+      setOrders(data.items);
       setPages(data.pages);
     } catch (err) {
       setError(

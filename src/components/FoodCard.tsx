@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import type { FoodItem } from "@/types";
 import { formatUsdWithLbp } from "@/lib/currency";
 import { useCart } from "@/context/CartContext";
 import { useRouter } from "next/navigation";
-import { useLanguage } from "@/context/LanguageContext";
+import { useTranslation } from "react-i18next";
 
 interface FoodCardProps {
   food: FoodItem;
@@ -24,7 +25,7 @@ export default function FoodCard({
   const [favoriteLoading, setFavoriteLoading] = useState(false);
   const { addToCart } = useCart();
   const router = useRouter();
-  const { copy } = useLanguage();
+  const { t } = useTranslation();
 
   const inStock = food.qty > 0;
   const price = formatUsdWithLbp(food.price);
@@ -34,7 +35,7 @@ export default function FoodCard({
     <div
       role="link"
       tabIndex={0}
-      aria-label={`View and customize ${food.name}`}
+      aria-label={t("card.view", { name: food.name })}
       onClick={() => router.push(`/food/${food.id}`)}
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ")
@@ -47,11 +48,13 @@ export default function FoodCard({
     >
       <div className="relative h-48 bg-neutral-100 sm:h-56">
         {hasImage ? (
-          <img
+          <Image
             src={food.image || ""}
             alt={food.name}
+            fill
+            sizes="(min-width: 1280px) 30vw, (min-width: 640px) 50vw, 100vw"
             onError={() => setImageError(true)}
-            className="h-full w-full object-cover"
+            className="object-cover"
           />
         ) : (
           <div className="flex h-full w-full flex-col items-center justify-center bg-gradient-to-br from-neutral-100 to-neutral-200 text-neutral-500">
@@ -60,7 +63,7 @@ export default function FoodCard({
             </div>
 
             <p className="mt-3 text-sm font-bold sm:mt-4">
-              {copy.card.noImage}
+              {t("card.noImage")}
             </p>
           </div>
         )}
@@ -96,8 +99,8 @@ export default function FoodCard({
             }}
             aria-label={
               isFavorite
-                ? `${copy.card.removeFavorite}: ${food.name}`
-                : `${copy.card.addFavorite}: ${food.name}`
+                ? `${t("card.removeFavorite")}: ${food.name}`
+                : `${t("card.addFavorite")}: ${food.name}`
             }
             className={`absolute bottom-3 right-3 flex h-11 w-11 items-center justify-center rounded-full border text-2xl shadow-lg transition hover:scale-110 disabled:opacity-60 sm:bottom-4 sm:right-4 ${
               isFavorite
@@ -105,7 +108,9 @@ export default function FoodCard({
                 : "border-white/50 bg-black/70 text-white"
             }`}
             title={
-              isFavorite ? copy.card.removeFavorite : copy.card.addFavorite
+              isFavorite
+                ? t("card.removeFavorite")
+                : t("card.addFavorite")
             }
           >
             {isFavorite ? "♥" : "♡"}
@@ -119,12 +124,12 @@ export default function FoodCard({
         </h4>
 
         <p className="mb-3 text-sm font-bold text-red-600">
-          {copy.card.customize}
+          {t("card.customize")}
         </p>
 
         <div className="mb-4 flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center sm:gap-4">
           <span className="font-semibold text-neutral-600">
-            {copy.card.quantity}: {food.qty}
+            {t("card.quantity")}: {food.qty}
           </span>
 
           <span
@@ -134,7 +139,7 @@ export default function FoodCard({
                 : "bg-red-100 text-red-700"
             }`}
           >
-            {inStock ? copy.card.inStock : copy.card.outOfStock}
+            {inStock ? t("card.inStock") : t("card.outOfStock")}
           </span>
         </div>
 
@@ -151,7 +156,7 @@ export default function FoodCard({
               : "cursor-not-allowed bg-neutral-200 text-neutral-500"
           }`}
         >
-          {inStock ? copy.card.add : copy.card.unavailable}
+          {inStock ? t("card.add") : t("card.unavailable")}
         </button>
       </div>
     </div>

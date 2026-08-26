@@ -1,6 +1,7 @@
 "use server";
 
 import prisma from "@/lib/prisma";
+import { menuFoodInclude } from "@/lib/prismaSelects";
 
 export async function getFoods() {
   try {
@@ -8,10 +9,7 @@ export async function getFoods() {
       orderBy: {
         createdAt: "desc",
       },
-      include: {
-        type: true,
-        orderItems: true,
-      },
+      include: menuFoodInclude,
     });
   } catch (err) {
     console.log("Error fetching foods:", err);

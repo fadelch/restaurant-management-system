@@ -24,6 +24,8 @@ model User {
   stockMovements   StockMovement[]   @relation("AdminStockMovements")
   assignedCoupons  Coupon[]          @relation("CouponUser")
   foodIssueReports FoodIssueReport[] @relation("UserFoodIssueReports")
+  announcements    Announcement[]    @relation("AnnouncementAuthor")
+  notifications    Notification[]    @relation("UserNotifications")
 }
 
 model FoodType {
@@ -227,4 +229,41 @@ model StockMovement {
   @@index([foodId, createdAt])
   @@index([adminId])
   @@index([orderId])
+}
+
+model Announcement {
+  id          String    @id @default(uuid())
+  title       String
+  message     String
+  published   Boolean   @default(false)
+  eventDate   DateTime?
+  expiresAt   DateTime?
+  createdById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  createdBy     User?          @relation("AnnouncementAuthor", fields: [createdById], references: [id], onDelete: SetNull)
+  notifications Notification[] @relation("AnnouncementNotifications")
+
+  @@index([published, createdAt])
+  @@index([eventDate])
+  @@index([expiresAt])
+  @@index([createdById])
+}
+
+model Notification {
+  id             String   @id @default(uuid())
+  userId         String
+  announcementId String
+  title          String
+  message        String
+  read           Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  user         User         @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  announcement Announcement @relation("AnnouncementNotifications", fields: [announcementId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, announcementId])
+  @@index([userId, read, createdAt])
+  @@index([announcementId])
 }

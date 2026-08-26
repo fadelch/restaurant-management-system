@@ -6,7 +6,7 @@ import { showMessage } from "@/components/MessageProvider";
 import { formatUsdWithLbp } from "@/lib/currency";
 import { getFoodTypes } from "@/server/getFoodTypes";
 import { insert_food } from "@/server/insert_food";
-import type { FoodType } from "@/types";
+import type { FoodTypeSummary } from "@/types";
 import FoodImageUpload from "@/components/FoodImageUpload";
 import FoodIngredientsEditor from "@/components/FoodIngredientsEditor";
 import type { OptionalIngredient } from "@/lib/foodOptions";
@@ -25,7 +25,7 @@ export default function Page() {
   const [minStock, setMinStock] = useState("5");
   const [image, setImage] = useState("");
   const [typeId, setTypeId] = useState("");
-  const [foodTypes, setFoodTypes] = useState<FoodType[]>([]);
+  const [foodTypes, setFoodTypes] = useState<FoodTypeSummary[]>([]);
   const [loading, setLoading] = useState(false);
 
   const parsedPrice = Number(price);
@@ -41,7 +41,7 @@ export default function Page() {
     const fetchFoodTypes = async () => {
       try {
         const types = await getFoodTypes();
-        setFoodTypes((types as FoodType[]) || []);
+        setFoodTypes(types);
       } catch (err) {
         console.log("Error loading food types:", err);
         showMessage("Failed to load food types.");

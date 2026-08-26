@@ -27,7 +27,6 @@ function inferVariant(text: string): MessageVariant {
 
 export function showMessage(message: unknown, variant?: MessageVariant) {
   if (typeof window === "undefined") return;
-
   const text = String(message);
   window.dispatchEvent(
     new CustomEvent(MESSAGE_EVENT, {

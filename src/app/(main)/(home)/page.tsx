@@ -13,11 +13,11 @@ import { getFavoriteFoodIds, toggleFavorite } from "@/server/favorites";
 import Footer from "@/components/Footer";
 import type { FoodItem } from "@/types";
 import { showMessage } from "@/components/MessageProvider";
-import { useLanguage } from "@/context/LanguageContext";
+import { useTranslation } from "react-i18next";
 import { getCurrentSession } from "@/server/authActions";
 
 export default function Page() {
-  const { language, copy } = useLanguage();
+  const { t } = useTranslation();
   const [foods, setFoods] = useState<FoodItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -28,10 +28,11 @@ export default function Page() {
   useEffect(() => {
     const fetchFoods = async () => {
       try {
-        const data = await getFoods();
-        setFoods((data as FoodItem[]) || []);
-
-        const session = await getCurrentSession();
+        const [data, session] = await Promise.all([
+          getFoods(),
+          getCurrentSession(),
+        ]);
+        setFoods(data);
         if (session?.email) {
           try {
             const ids = await getFavoriteFoodIds(session.email);
@@ -82,11 +83,7 @@ export default function Page() {
   };
 
   return (
-    <div
-      lang={language}
-      dir={language === "ar" ? "rtl" : "ltr"}
-      className="min-h-screen bg-[#080808] text-white"
-    >
+    <div className="min-h-screen bg-[#080808] text-white">
       <Nav_bar />
 
       <div className="mx-auto flex min-w-0 max-w-[1540px]">
@@ -108,14 +105,14 @@ export default function Page() {
           <AnimatedSection className="py-8 sm:py-12 lg:py-16">
             <section id="menu" className="scroll-mt-24">
               <p className="text-xs font-black uppercase tracking-[0.22em] text-red-400 sm:text-sm">
-                {copy.menu.eyebrow}
+                {t("menu.eyebrow")}
               </p>
               <div className="mb-6 mt-2 flex flex-col justify-between gap-2 sm:mb-9 sm:flex-row sm:items-end">
                 <h2 className="text-3xl font-black sm:text-4xl lg:text-5xl">
-                  {copy.menu.title}
+                  {t("menu.title")}
                 </h2>
                 <p className="text-sm text-gray-400 sm:text-base">
-                  {copy.menu.subtitle}
+                  {t("menu.subtitle")}
                 </p>
               </div>
 
@@ -130,7 +127,7 @@ export default function Page() {
                 </div>
               ) : foods.length === 0 ? (
                 <div className="rounded-2xl bg-neutral-900 p-6 text-center text-lg font-semibold shadow-sm sm:rounded-3xl sm:p-8 sm:text-xl">
-                  {copy.menu.empty}
+                  {t("menu.empty")}
                 </div>
               ) : (
                 <AnimatedSection className="mb-8 sm:mb-10">

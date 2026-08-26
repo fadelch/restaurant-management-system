@@ -10,14 +10,12 @@ const schema = z.object({
   orderId: idSchema,
   foodId: idSchema,
   quantity: z.coerce.number().int().positive().max(1000),
-  price: z.coerce.number().positive().max(100_000).optional(),
 });
 
 export async function insert_order_item(data: {
   orderId: string;
   foodId: string;
   quantity: number;
-  price?: number;
 }) {
   try {
     const actor = await requireAdmin();
@@ -25,34 +23,30 @@ export async function insert_order_item(data: {
     if (!parsed.success) throw new Error(validationMessage(parsed.error));
     const { orderId, foodId, quantity } = parsed.data;
 
-    const order = await prisma.order.findUnique({
-      where: {
-        id: orderId,
-      },
-    });
-
-    if (!order) {
-      throw new Error("Selected order does not exist.");
-    }
-
-    const food = await prisma.food.findUnique({
-      where: {
-        id: foodId,
-      },
-    });
-
-    if (!food) {
-      throw new Error("Selected food does not exist.");
-    }
-
-    if (food.qty < quantity) {
-      throw new Error("Not enough food quantity in stock.");
-    }
-
-    const price = parsed.data.price || food.price;
-    const itemTotal = price * quantity;
-
     const result = await prisma.$transaction(async (tx) => {
+      const [order, food] = await Promise.all([
+        tx.order.findUnique({ where: { id: orderId } }),
+        tx.food.findUnique({ where: { id: foodId } }),
+      ]);
+      if (!order) throw new Error("Selected order does not exist.");
+      if (!food) throw new Error("Selected food does not exist.");
+      if (["cancelled", "canceled"].includes(order.status.toLowerCase())) {
+        throw new Error("Items cannot be added to a cancelled order.");
+      }
+
+      const stockUpdate = await tx.food.updateMany({
+        where: { id: foodId, qty: { gte: quantity } },
+        data: { qty: { decrement: quantity } },
+      });
+      if (stockUpdate.count !== 1) {
+        throw new Error("Not enough food quantity in stock.");
+      }
+      const latestFood = await tx.food.findUniqueOrThrow({
+        where: { id: foodId },
+        select: { qty: true },
+      });
+      const price = food.price;
+      const itemTotal = price * quantity;
       const orderItem = await tx.orderItem.create({
         data: {
           orderId,
@@ -63,17 +57,6 @@ export async function insert_order_item(data: {
         include: {
           order: true,
           food: true,
-        },
-      });
-
-      await tx.food.update({
-        where: {
-          id: foodId,
-        },
-        data: {
-          qty: {
-            decrement: quantity,
-          },
         },
       });
 
@@ -97,20 +80,24 @@ export async function insert_order_item(data: {
           adminId: actor.id,
           orderId,
           change: -quantity,
-          previousQty: food.qty,
-          newQty: food.qty - quantity,
+          previousQty: latestFood.qty + quantity,
+          newQty: latestFood.qty,
           reason: "Admin added order item",
         },
       });
 
-      return orderItem;
-    });
+      await writeAuditLog(
+        actor,
+        {
+          action: "CREATE_ORDER_ITEM",
+          entityType: "OrderItem",
+          entityId: String(orderItem.id),
+          changes: { orderId, foodId, quantity, price },
+        },
+        tx,
+      );
 
-    await writeAuditLog(actor, {
-      action: "CREATE_ORDER_ITEM",
-      entityType: "OrderItem",
-      entityId: String(result.id),
-      changes: { orderId, foodId, quantity, price },
+      return orderItem;
     });
     return result;
   } catch (err) {

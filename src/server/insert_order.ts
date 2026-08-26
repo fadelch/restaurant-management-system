@@ -8,6 +8,7 @@ import {
   validationMessage,
 } from "@/lib/validation";
 import { writeAuditLog } from "@/lib/audit";
+import { publicUserSelect } from "@/lib/prismaSelects";
 
 export async function insert_order(data: { userId: string; status: string }) {
   try {
@@ -46,7 +47,7 @@ export async function insert_order(data: { userId: string; status: string }) {
               : "pending",
       },
       include: {
-        user: true,
+        user: { select: publicUserSelect },
         items: true,
       },
     });

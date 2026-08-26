@@ -37,62 +37,58 @@ export async function insert_food(data: {
     } = parsed.data;
     const image = parsed.data.image || null;
 
-    const foodType = await prisma.foodType.findUnique({
-      where: {
-        id: typeId,
-      },
-    });
-
-    if (!foodType) {
-      throw new Error("Selected food type does not exist.");
-    }
-
-    const food = await prisma.food.create({
-      data: {
-        name,
-        description: description || null,
-        ingredients,
-        optionalIngredients,
-        extraCheesePrice,
-        price,
-        qty,
-        minStock,
-        image,
-        typeId,
-      },
-      include: {
-        type: true,
-      },
-    });
-    if (qty > 0) {
-      await prisma.stockMovement.create({
+    return await prisma.$transaction(async (tx) => {
+      const foodType = await tx.foodType.findUnique({ where: { id: typeId } });
+      if (!foodType) throw new Error("Selected food type does not exist.");
+      const food = await tx.food.create({
         data: {
-          foodId: food.id,
-          adminId: actor.id,
-          change: qty,
-          previousQty: 0,
-          newQty: qty,
-          reason: "Initial stock",
+          name,
+          description: description || null,
+          ingredients,
+          optionalIngredients,
+          extraCheesePrice,
+          price,
+          qty,
+          minStock,
+          image,
+          typeId,
         },
+        include: { type: true },
       });
-    }
-    await writeAuditLog(actor, {
-      action: "CREATE_FOOD",
-      entityType: "Food",
-      entityId: food.id,
-      changes: {
-        name,
-        description,
-        ingredients,
-        optionalIngredients,
-        extraCheesePrice,
-        price,
-        qty,
-        minStock,
-        typeId,
-      },
+      if (qty > 0) {
+        await tx.stockMovement.create({
+          data: {
+            foodId: food.id,
+            adminId: actor.id,
+            change: qty,
+            previousQty: 0,
+            newQty: qty,
+            reason: "Initial stock",
+          },
+        });
+      }
+      await writeAuditLog(
+        actor,
+        {
+          action: "CREATE_FOOD",
+          entityType: "Food",
+          entityId: food.id,
+          changes: {
+            name,
+            description,
+            ingredients,
+            optionalIngredients,
+            extraCheesePrice,
+            price,
+            qty,
+            minStock,
+            typeId,
+          },
+        },
+        tx,
+      );
+      return food;
     });
-    return food;
   } catch (err) {
     console.log("Error inserting food:", err);
     throw err;

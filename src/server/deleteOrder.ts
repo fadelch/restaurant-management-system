@@ -16,83 +16,67 @@ function normalizeStatus(status: string) {
 }
 
 export async function deleteOrder(id: string) {
-  try {
-    const actor = await requireAdmin();
-    const parsed = idSchema.safeParse(id);
-    if (!parsed.success) throw new Error(validationMessage(parsed.error));
-    id = parsed.data;
+  const actor = await requireAdmin();
+  const parsed = idSchema.safeParse(id);
+  if (!parsed.success) throw new Error(validationMessage(parsed.error));
+  const validId = parsed.data;
 
-    const order = await prisma.order.findUnique({
-      where: {
-        id,
-      },
-      include: {
-        items: true,
-      },
-    });
-
-    if (!order) {
-      throw new Error("Order not found.");
-    }
-
-    const status = normalizeStatus(order.status);
-
-    const shouldReturnQty =
-      status !== "cancelled" && order.stockReturned === false;
-
-    return await prisma
-      .$transaction(async (tx) => {
-        if (shouldReturnQty) {
-          for (const item of order.items) {
-            const food = await tx.food.findUnique({
-              where: { id: item.foodId },
-            });
-            if (!food) continue;
-            await tx.food.update({
-              where: {
-                id: item.foodId,
-              },
-              data: {
-                qty: {
-                  increment: item.quantity,
-                },
-              },
-            });
-            await tx.stockMovement.create({
-              data: {
-                foodId: item.foodId,
-                adminId: actor.id,
-                orderId: id,
-                change: item.quantity,
-                previousQty: food.qty,
-                newQty: food.qty + item.quantity,
-                reason: "Order deleted - stock restored",
-              },
-            });
-          }
-        }
-
-        return await tx.order.delete({
-          where: {
-            id,
-          },
+  return prisma.$transaction(
+    async (tx) => {
+      const order = await tx.order.findUnique({
+        where: { id: validId },
+        include: { items: true },
+      });
+      if (!order) throw new Error("Order not found.");
+      const shouldReturnQty =
+        normalizeStatus(order.status) !== "cancelled" && !order.stockReturned;
+      if (shouldReturnQty) {
+        const quantities = new Map<string, number>();
+        order.items.forEach((item) => {
+          quantities.set(
+            item.foodId,
+            (quantities.get(item.foodId) || 0) + item.quantity,
+          );
         });
-      })
-      .then(async (deleted) => {
-        await writeAuditLog(actor, {
+        const foods = await tx.food.findMany({
+          where: { id: { in: [...quantities.keys()] } },
+        });
+        for (const food of foods) {
+          const quantity = quantities.get(food.id) || 0;
+          await tx.food.update({
+            where: { id: food.id },
+            data: { qty: { increment: quantity } },
+          });
+          await tx.stockMovement.create({
+            data: {
+              foodId: food.id,
+              adminId: actor.id,
+              orderId: validId,
+              change: quantity,
+              previousQty: food.qty,
+              newQty: food.qty + quantity,
+              reason: "Order deleted - stock restored",
+            },
+          });
+        }
+      }
+      const deleted = await tx.order.delete({ where: { id: validId } });
+      await writeAuditLog(
+        actor,
+        {
           action: "DELETE_ORDER",
           entityType: "Order",
-          entityId: id,
+          entityId: validId,
           changes: {
             orderNumber: order.orderNumber,
             status: order.status,
             total: order.total,
           },
-        });
-        return deleted;
-      });
-  } catch (err) {
-    console.log("Error deleting order:", err);
-    throw err;
-  }
+        },
+        tx,
+      );
+      return deleted;
+    },
+    { isolationLevel: "Serializable" },
+  );
 }

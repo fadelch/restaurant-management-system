@@ -2,26 +2,20 @@
 
 import prisma from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
+import { adminOrderInclude } from "@/lib/prismaSelects";
+import { idSchema, validationMessage } from "@/lib/validation";
 
 export async function getOrderById(id: string) {
   await requireAdmin();
   try {
-    if (!id) {
-      throw new Error("Order ID is required.");
-    }
+    const parsed = idSchema.safeParse(id);
+    if (!parsed.success) throw new Error(validationMessage(parsed.error));
 
     return await prisma.order.findUnique({
       where: {
-        id,
+        id: parsed.data,
       },
-      include: {
-        user: true,
-        items: {
-          include: {
-            food: true,
-          },
-        },
-      },
+      include: adminOrderInclude,
     });
   } catch (err) {
     console.log("Error fetching order:", err);

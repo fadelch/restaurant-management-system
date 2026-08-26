@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { showMessage } from "@/components/MessageProvider";
 import { useCart } from "@/context/CartContext";
@@ -39,7 +39,7 @@ export default function CartCheckoutDialog({
   const inputClass =
     "mt-1.5 w-full rounded-xl border border-white/15 bg-black/50 p-3.5 text-base text-white outline-none transition placeholder:text-gray-600 focus:border-red-500 focus:ring-2 focus:ring-red-700/40";
 
-  const loadSettings = async () => {
+  const loadSettings = useCallback(async () => {
     try {
       setSettingsError("");
       const next = await getCheckoutSettings();
@@ -52,11 +52,11 @@ export default function CartCheckoutDialog({
           : "Checkout settings could not be loaded.",
       );
     }
-  };
+  }, [deliveryZoneId]);
 
   useEffect(() => {
     if (open && !settings) loadSettings();
-  }, [open, settings]);
+  }, [loadSettings, open, settings]);
 
   useEffect(() => {
     if (!open) return;

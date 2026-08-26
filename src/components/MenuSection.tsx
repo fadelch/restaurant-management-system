@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import FoodCard from "@/components/FoodCard";
 import type { FoodItem } from "@/types";
-import { useLanguage } from "@/context/LanguageContext";
+import { useTranslation } from "react-i18next";
 
 interface MenuSectionProps {
   title?: string;
@@ -18,7 +18,7 @@ export default function MenuSection({
   favoriteFoodIds = new Set<string>(),
   onToggleFavorite,
 }: MenuSectionProps) {
-  const { copy } = useLanguage();
+  const { t } = useTranslation();
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
   const [availability, setAvailability] = useState("all");
@@ -76,7 +76,7 @@ export default function MenuSection({
     visibleFoods
       .reduce((groups, food) => {
         const groupKey = food.type?.id || food.typeId || "other";
-        const groupName = food.type?.name?.trim() || copy.menu.other;
+        const groupName = food.type?.name?.trim() || t("menu.other");
         const existingGroup = groups.get(groupKey);
 
         if (existingGroup) {
@@ -97,33 +97,33 @@ export default function MenuSection({
   return (
     <section className="mb-8 sm:mb-14">
       <h3 className="mb-5 text-2xl font-black sm:mb-6 sm:text-3xl">
-        {title || copy.menu.browse}
+        {title || t("menu.browse")}
       </h3>
 
       <div className="mb-6 grid grid-cols-2 gap-3 rounded-2xl border border-neutral-800 bg-neutral-950 p-3 shadow-lg sm:mb-8 sm:p-5 lg:grid-cols-5">
         <label className="col-span-2 lg:col-span-2">
           <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-gray-400">
-            {copy.menu.searchLabel}
+            {t("menu.searchLabel")}
           </span>
           <input
             type="search"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder={copy.menu.searchPlaceholder}
+            placeholder={t("menu.searchPlaceholder")}
             className="w-full rounded-xl border border-neutral-700 bg-black px-3 py-3 text-white outline-none transition placeholder:text-gray-600 focus:border-red-500 focus:ring-2 focus:ring-red-700/40 sm:px-4"
           />
         </label>
 
         <label>
           <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-gray-400">
-            {copy.menu.category}
+            {t("menu.category")}
           </span>
           <select
             value={category}
             onChange={(event) => setCategory(event.target.value)}
             className="w-full rounded-xl border border-neutral-700 bg-black px-2.5 py-3 text-sm text-white outline-none focus:border-red-500 sm:px-4 sm:text-base"
           >
-            <option value="all">{copy.menu.allCategories}</option>
+            <option value="all">{t("menu.allCategories")}</option>
             {categories.map((item) => (
               <option key={item.id} value={item.id}>
                 {item.name}
@@ -134,41 +134,41 @@ export default function MenuSection({
 
         <label>
           <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-gray-400">
-            {copy.menu.availability}
+            {t("menu.availability")}
           </span>
           <select
             value={availability}
             onChange={(event) => setAvailability(event.target.value)}
             className="w-full rounded-xl border border-neutral-700 bg-black px-2.5 py-3 text-sm text-white outline-none focus:border-red-500 sm:px-4 sm:text-base"
           >
-            <option value="all">{copy.menu.allItems}</option>
-            <option value="available">{copy.menu.inStock}</option>
-            <option value="unavailable">{copy.menu.outOfStock}</option>
+            <option value="all">{t("menu.allItems")}</option>
+            <option value="available">{t("menu.inStock")}</option>
+            <option value="unavailable">{t("menu.outOfStock")}</option>
           </select>
         </label>
 
         <label className="col-span-2 lg:col-span-1">
           <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-gray-400">
-            {copy.menu.sort}
+            {t("menu.sort")}
           </span>
           <select
             value={sort}
             onChange={(event) => setSort(event.target.value)}
             className="w-full rounded-xl border border-neutral-700 bg-black px-3 py-3 text-sm text-white outline-none focus:border-red-500 sm:px-4 sm:text-base"
           >
-            <option value="default">{copy.menu.newest}</option>
-            <option value="price-low">{copy.menu.priceLow}</option>
-            <option value="price-high">{copy.menu.priceHigh}</option>
-            <option value="popular">{copy.menu.popular}</option>
+            <option value="default">{t("menu.newest")}</option>
+            <option value="price-low">{t("menu.priceLow")}</option>
+            <option value="price-high">{t("menu.priceHigh")}</option>
+            <option value="popular">{t("menu.popular")}</option>
           </select>
         </label>
       </div>
 
       {foodGroups.length === 0 ? (
         <div className="rounded-2xl border border-neutral-800 bg-neutral-950 p-6 text-center sm:p-8">
-          <p className="text-xl font-black">{copy.menu.noMatches}</p>
+          <p className="text-xl font-black">{t("menu.noMatches")}</p>
           <p className="mt-2 text-gray-400">
-            {copy.menu.noMatchesHelp}
+            {t("menu.noMatchesHelp")}
           </p>
           <button
             type="button"
@@ -180,7 +180,7 @@ export default function MenuSection({
             }}
             className="mt-5 rounded-xl bg-red-600 px-5 py-3 font-bold text-white hover:bg-red-700"
           >
-            {copy.menu.reset}
+            {t("menu.reset")}
           </button>
         </div>
       ) : (
@@ -198,8 +198,8 @@ export default function MenuSection({
                 <span className="rounded-full bg-red-600/15 px-4 py-2 text-sm font-bold text-red-400">
                   {group.foods.length}{" "}
                   {group.foods.length === 1
-                    ? copy.menu.item
-                    : copy.menu.items}
+                    ? t("menu.item")
+                    : t("menu.items")}
                 </span>
               </div>
 

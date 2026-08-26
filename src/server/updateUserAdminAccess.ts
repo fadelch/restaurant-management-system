@@ -37,6 +37,14 @@ export async function updateUserAdminAccess(data: {
       data: {
         isAdmin: data.makeAdmin,
       },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        isAdmin: true,
+        isBanned: true,
+        createdAt: true,
+      },
     });
     await writeAuditLog(actor, {
       action: data.makeAdmin ? "GRANT_ADMIN" : "REVOKE_ADMIN",

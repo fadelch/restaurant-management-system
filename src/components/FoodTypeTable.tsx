@@ -6,12 +6,9 @@ import SectionHeader from "@/components/SectionHeader";
 import { getFoodTypesPage } from "@/server/adminData";
 import AdminPageControls from "@/components/AdminPageControls";
 
-type FoodType = {
-  id: string;
-  name: string;
-  createdAt: string | Date;
-  foods?: { id: string }[];
-};
+type FoodType = Awaited<
+  ReturnType<typeof getFoodTypesPage>
+>["items"][number];
 
 export default function FoodTypeTable() {
   const [foodTypes, setFoodTypes] = useState<FoodType[]>([]);
@@ -39,7 +36,7 @@ export default function FoodTypeTable() {
     setError("");
     try {
       const data = await getFoodTypesPage(query);
-      setFoodTypes(data.items as FoodType[]);
+      setFoodTypes(data.items);
       setPages(data.pages);
     } catch (err) {
       setError(

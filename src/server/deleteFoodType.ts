@@ -9,13 +9,13 @@ export async function deleteFoodType(id: string) {
   const actor = await requireAdmin();
   id = idSchema.parse(id);
 
-  const foodsUsingType = await prisma.food.findMany({
+  const foodsUsingType = await prisma.food.count({
     where: {
       typeId: id,
     },
   });
 
-  if (foodsUsingType.length > 0) {
+  if (foodsUsingType > 0) {
     throw new Error("Cannot delete food type because foods are using it.");
   }
 

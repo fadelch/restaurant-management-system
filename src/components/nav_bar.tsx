@@ -1,12 +1,14 @@
 "use client";
 
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useCart } from "@/context/CartContext";
 import { getCurrentSession, logoutUser } from "@/server/authActions";
 import { getCheckoutSettings } from "@/server/checkoutSettings";
-import { useLanguage } from "@/context/LanguageContext";
+import { useTranslation } from "react-i18next";
 import { showMessage } from "@/components/MessageProvider";
+import NotificationBell from "@/components/notifications/NotificationBell";
 
 type Session = Awaited<ReturnType<typeof getCurrentSession>>;
 
@@ -14,7 +16,7 @@ export default function Nav_bar() {
   const router = useRouter();
   const pathname = usePathname();
   const { cartCount } = useCart();
-  const { copy, toggleLanguage } = useLanguage();
+  const { t, i18n } = useTranslation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [session, setSession] = useState<Session>(null);
   const [sessionLoaded, setSessionLoaded] = useState(false);
@@ -22,24 +24,26 @@ export default function Nav_bar() {
     isOpen: boolean;
     message: string;
   } | null>(null);
-  const isHome = pathname === "/";
-  const labels = isHome
-    ? copy.nav
-    : {
-        brand: "Restaurant",
-        home: "Home",
-        menu: "Menu",
-        admin: "Admin",
-        orders: "My Orders",
-        cart: "Shopping cart",
-        login: "Login",
-        logout: "Logout",
-        open: "Open now",
-        closed: "Closed",
-        language: "العربية",
-        openMenu: "Open navigation menu",
-        closeMenu: "Close navigation menu",
-      };
+  const labels = {
+    brand: t("nav.brand"),
+    home: t("nav.home"),
+    menu: t("nav.menu"),
+    admin: t("nav.admin"),
+    announcements: t("nav.announcements"),
+    orders: t("nav.orders"),
+    cart: t("nav.cart"),
+    login: t("nav.login"),
+    logout: t("nav.logout"),
+    open: t("nav.open"),
+    closed: t("nav.closed"),
+    language: t("nav.language"),
+    openMenu: t("nav.openMenu"),
+    closeMenu: t("nav.closeMenu"),
+  };
+
+  const toggleLanguage = () => {
+    void i18n.changeLanguage(i18n.resolvedLanguage === "ar" ? "en" : "ar");
+  };
 
   useEffect(() => {
     let active = true;
@@ -126,13 +130,22 @@ export default function Nav_bar() {
         </button>
       ) : null}
       {session ? (
-        <button
-          type="button"
-          onClick={() => navigateTo("/profile/orders")}
-          className={linkClass}
-        >
-          {labels.orders}
-        </button>
+        <>
+          <button
+            type="button"
+            onClick={() => navigateTo("/announcements")}
+            className={linkClass}
+          >
+            {labels.announcements}
+          </button>
+          <button
+            type="button"
+            onClick={() => navigateTo("/profile/orders")}
+            className={linkClass}
+          >
+            {labels.orders}
+          </button>
+        </>
       ) : null}
     </>
   );
@@ -168,15 +181,19 @@ export default function Nav_bar() {
             onClick={() => navigateTo("/")}
             className="flex min-w-0 items-center gap-2.5 transition hover:opacity-90 sm:gap-3"
           >
-            <img
+            <Image
               src="/Logo.png"
               alt="Restaurant logo"
+              width={56}
+              height={56}
               className="h-11 w-11 shrink-0 rounded-xl object-cover ring-1 ring-red-500/30 sm:h-14 sm:w-14"
             />
             <span className="truncate text-base font-black uppercase tracking-wide text-red-500 sm:text-xl">
               {labels.brand}
             </span>
           </button>
+
+          <NotificationBell active={Boolean(session)} />
 
           <div className="hidden items-center gap-1 lg:flex">
             {restaurant ? (
@@ -197,16 +214,14 @@ export default function Nav_bar() {
 
             {navigation}
 
-            {isHome ? (
-              <button
-                type="button"
-                onClick={toggleLanguage}
-                className="mx-1 rounded-xl border border-white/15 px-3 py-2.5 text-sm font-black text-white transition hover:border-red-400 hover:text-red-300"
-                aria-label="Switch page language"
-              >
-                <span aria-hidden="true">🌐</span> {labels.language}
-              </button>
-            ) : null}
+            <button
+              type="button"
+              onClick={toggleLanguage}
+              className="mx-1 rounded-xl border border-white/15 px-3 py-2.5 text-sm font-black text-white transition hover:border-red-400 hover:text-red-300"
+              aria-label={t("nav.switchLanguage")}
+            >
+              <span aria-hidden="true">🌐</span> {labels.language}
+            </button>
 
             <button
               type="button"
@@ -227,16 +242,14 @@ export default function Nav_bar() {
           </div>
 
           <div className="flex items-center gap-2 lg:hidden">
-            {isHome ? (
-              <button
-                type="button"
-                onClick={toggleLanguage}
-                className="rounded-xl border border-white/15 px-2.5 py-2 text-xs font-black"
-                aria-label="Switch page language"
-              >
-                {labels.language}
-              </button>
-            ) : null}
+            <button
+              type="button"
+              onClick={toggleLanguage}
+              className="rounded-xl border border-white/15 px-2.5 py-2 text-xs font-black"
+              aria-label={t("nav.switchLanguage")}
+            >
+              {labels.language}
+            </button>
             <button
               type="button"
               onClick={openCart}

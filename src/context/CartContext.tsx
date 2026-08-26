@@ -2,27 +2,16 @@
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { FoodItem } from "@/types";
+import type {
+  CartCustomization,
+  CartItem,
+  FoodItem,
+} from "@/types";
 import { showMessage } from "@/components/MessageProvider";
-import {
-  normalizeOptionalIngredients,
-  type OptionalIngredient,
-} from "@/lib/foodOptions";
+import { normalizeOptionalIngredients } from "@/lib/foodOptions";
 import { getCurrentSession } from "@/server/authActions";
 
-export type CartCustomization = {
-  extraCheese: boolean;
-  removedIngredients: string[];
-  addedIngredients: OptionalIngredient[];
-  customizationNote: string;
-};
-
-export type CartItem = FoodItem & {
-  cartKey: string;
-  cartQty: number;
-  unitPrice: number;
-  customization: CartCustomization;
-};
+export type { CartCustomization, CartItem } from "@/types";
 
 type CartContextType = {
   cartItems: CartItem[];

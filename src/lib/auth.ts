@@ -2,19 +2,25 @@ import "server-only";
 
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
+import { z } from "zod";
 import prisma from "@/lib/prisma";
 
 const SESSION_COOKIE = "restaurant_session";
 const SESSION_DURATION_SECONDS = 60 * 60 * 24 * 7;
 
-type SessionPayload = {
-  userId: string;
-  expiresAt: number;
-};
+const sessionPayloadSchema = z.object({
+  userId: z.string().uuid(),
+  expiresAt: z.number().int().positive(),
+});
+
+type SessionPayload = z.infer<typeof sessionPayloadSchema>;
 
 function sessionSecret() {
-  const secret = process.env.AUTH_SECRET || process.env.DATABASE_URL;
+  const secret = process.env.AUTH_SECRET;
   if (!secret) throw new Error("AUTH_SECRET is not configured.");
+  if (secret.length < 32) {
+    throw new Error("AUTH_SECRET must contain at least 32 characters.");
+  }
   return secret;
 }
 
@@ -45,11 +51,11 @@ function decodeSession(token?: string): SessionPayload | null {
   }
 
   try {
-    const payload = JSON.parse(
-      Buffer.from(encoded, "base64url").toString(),
-    ) as SessionPayload;
-    if (!payload.userId || payload.expiresAt <= Date.now()) return null;
-    return payload;
+    const payload = sessionPayloadSchema.safeParse(
+      JSON.parse(Buffer.from(encoded, "base64url").toString()),
+    );
+    if (!payload.success || payload.data.expiresAt <= Date.now()) return null;
+    return payload.data;
   } catch {
     return null;
   }
@@ -91,7 +97,17 @@ export async function getCurrentUser() {
   const payload = decodeSession(cookieStore.get(SESSION_COOKIE)?.value);
   if (!payload) return null;
 
-  const user = await prisma.user.findUnique({ where: { id: payload.userId } });
+  const user = await prisma.user.findUnique({
+    where: { id: payload.userId },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      isAdmin: true,
+      isBanned: true,
+      createdAt: true,
+    },
+  });
   if (!user || user.isBanned) return null;
 
   const isSuperAdmin = isSuperAdminEmail(user.email);

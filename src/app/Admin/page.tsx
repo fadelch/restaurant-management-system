@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Nav_bar from "@/components/nav_bar";
 import { getCurrentSession } from "@/server/authActions";
 import UsersTable from "@/components/UsersTable";
 import FoodTable from "@/components/FoodTable";
@@ -16,6 +15,7 @@ export default function Page() {
 
   const [checkingAdmin, setCheckingAdmin] = useState(true);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [protectedUserId, setProtectedUserId] = useState<string | null>(null);
 
   useEffect(() => {
     const checkAccess = async () => {
@@ -28,14 +28,11 @@ export default function Page() {
         }
 
         if (role.isSuperAdmin) {
-          if (role.email) {
-            sessionStorage.setItem("SuperAdmin", role.email);
-            sessionStorage.setItem("Admin", role.email);
-          }
           setIsSuperAdmin(true);
+          setProtectedUserId(role.id);
         } else {
-          if (role.email) sessionStorage.setItem("Admin", role.email);
           setIsSuperAdmin(false);
+          setProtectedUserId(null);
         }
 
         setCheckingAdmin(false);
@@ -60,8 +57,6 @@ export default function Page() {
 
   return (
     <div className="min-h-screen bg-[#120000] text-white">
-      <Nav_bar />
-
       <main className="px-3 py-6 sm:px-4 sm:py-8 md:px-8 lg:px-12 lg:py-10">
         <section className="mb-10 rounded-2xl border border-red-900/50 bg-[#1a0000] p-5 shadow-2xl sm:p-8">
           <div className="flex flex-col items-center justify-between gap-6 md:flex-row">
@@ -109,6 +104,11 @@ export default function Page() {
               text: "Delivery zones, opening hours, and coupons",
             },
             {
+              href: "/Admin/announcements",
+              title: "Announcements & Events",
+              text: "Publish restaurant news and notify users",
+            },
+            {
               href: "/Admin/audit-logs",
               title: "Audit Logs",
               text: "Who changed what, with date and time",
@@ -132,7 +132,10 @@ export default function Page() {
 
         <section className="min-w-0 space-y-10">
           <FoodIssueReports />
-          <UsersTable isSuperAdmin={isSuperAdmin} />
+          <UsersTable
+            isSuperAdmin={isSuperAdmin}
+            protectedUserId={protectedUserId}
+          />
           <FoodTable />
           <FoodTypeTable />
           <OrderTable />

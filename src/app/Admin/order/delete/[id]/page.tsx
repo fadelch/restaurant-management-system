@@ -9,9 +9,9 @@ import { showMessage } from "@/components/MessageProvider";
 
 export default function DeleteOrderPage() {
   const router = useRouter();
-  const params = useParams();
+  const params = useParams<{ id: string }>();
 
-  const id = params.id as string;
+  const id = params.id;
 
   const [userEmail, setUserEmail] = useState("");
   const [status, setStatus] = useState("");
@@ -59,7 +59,9 @@ export default function DeleteOrderPage() {
       router.refresh();
     } catch (err) {
       console.log("Error deleting order:", err);
-      showMessage("Failed to delete order.");
+      showMessage(
+        err instanceof Error ? err.message : "Failed to delete order.",
+      );
     } finally {
       setLoading(false);
     }

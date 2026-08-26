@@ -1,27 +1,27 @@
 "use server";
 
 import { z } from "zod";
+import type { Prisma } from "@/generated/prisma";
 import prisma from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import {
   idSchema,
-  pageOptionsSchema,
   validationMessage,
 } from "@/lib/validation";
-
-type PageInput = Partial<z.input<typeof pageOptionsSchema>>;
-
-function pageInput(input: PageInput) {
-  const result = pageOptionsSchema.safeParse(input);
-  if (!result.success) throw new Error(validationMessage(result.error));
-  return result.data;
-}
+import { adminFoodInclude, adminOrderInclude } from "@/lib/prismaSelects";
+import {
+  paginatedResult,
+  paginationArgs,
+  parsePageInput,
+} from "@/lib/pagination";
+import { resolveOrderBy } from "@/lib/sorting";
+import type { PageInput } from "@/types/pagination";
 
 export async function getAuditLogPage(input: PageInput = {}) {
   await requireAdmin();
-  const options = pageInput(input);
-  const where = {
+  const options = parsePageInput(input);
+  const where: Prisma.AuditLogWhereInput = {
     AND: [
       options.search
         ? {
@@ -56,17 +56,22 @@ export async function getAuditLogPage(input: PageInput = {}) {
       options.filter !== "all" ? { entityType: options.filter } : {},
     ],
   };
-  const sortable = ["createdAt", "action", "entityType", "adminEmail"].includes(
+  const orderBy = resolveOrderBy<Prisma.AuditLogOrderByWithRelationInput>(
     options.sort,
-  )
-    ? options.sort
-    : "createdAt";
+    options.direction,
+    {
+      createdAt: (direction) => ({ createdAt: direction }),
+      action: (direction) => ({ action: direction }),
+      entityType: (direction) => ({ entityType: direction }),
+      adminEmail: (direction) => ({ adminEmail: direction }),
+    },
+    "createdAt",
+  );
   const [items, total, entityTypes] = await Promise.all([
     prisma.auditLog.findMany({
       where,
-      orderBy: { [sortable]: options.direction },
-      skip: (options.page - 1) * options.pageSize,
-      take: options.pageSize,
+      orderBy,
+      ...paginationArgs(options),
     }),
     prisma.auditLog.count({ where }),
     prisma.auditLog.findMany({
@@ -76,25 +81,21 @@ export async function getAuditLogPage(input: PageInput = {}) {
     }),
   ]);
   return {
-    items,
-    total,
-    page: options.page,
-    pageSize: options.pageSize,
-    pages: Math.max(1, Math.ceil(total / options.pageSize)),
+    ...paginatedResult(items, total, options),
     filters: entityTypes.map((row) => row.entityType),
   };
 }
 
 export async function getInventoryPage(input: PageInput = {}) {
   await requireAdmin();
-  const options = pageInput(input);
-  const stockWhere =
+  const options = parsePageInput(input);
+  const stockWhere: Prisma.FoodWhereInput =
     options.filter === "out"
       ? { qty: 0 }
       : options.filter === "low"
         ? { qty: { gt: 0, lte: prisma.food.fields.minStock } }
         : {};
-  const where = {
+  const where: Prisma.FoodWhereInput = {
     AND: [
       stockWhere,
       options.search
@@ -119,18 +120,24 @@ export async function getInventoryPage(input: PageInput = {}) {
         : {},
     ],
   };
-  const sortable = ["createdAt", "name", "qty", "minStock", "price"].includes(
+  const orderBy = resolveOrderBy<Prisma.FoodOrderByWithRelationInput>(
     options.sort,
-  )
-    ? options.sort
-    : "qty";
+    options.direction,
+    {
+      createdAt: (direction) => ({ createdAt: direction }),
+      name: (direction) => ({ name: direction }),
+      qty: (direction) => ({ qty: direction }),
+      minStock: (direction) => ({ minStock: direction }),
+      price: (direction) => ({ price: direction }),
+    },
+    "qty",
+  );
   const [items, total, recentMovements] = await Promise.all([
     prisma.food.findMany({
       where,
       include: { type: true },
-      orderBy: { [sortable]: options.direction },
-      skip: (options.page - 1) * options.pageSize,
-      take: options.pageSize,
+      orderBy,
+      ...paginationArgs(options),
     }),
     prisma.food.count({ where }),
     prisma.stockMovement.findMany({
@@ -144,19 +151,15 @@ export async function getInventoryPage(input: PageInput = {}) {
     }),
   ]);
   return {
-    items,
-    total,
-    page: options.page,
-    pageSize: options.pageSize,
-    pages: Math.max(1, Math.ceil(total / options.pageSize)),
+    ...paginatedResult(items, total, options),
     recentMovements,
   };
 }
 
 export async function getUsersPage(input: PageInput = {}) {
   await requireAdmin();
-  const options = pageInput(input);
-  const where = {
+  const options = parsePageInput(input);
+  const where: Prisma.UserWhereInput = {
     AND: [
       options.search
         ? {
@@ -185,9 +188,16 @@ export async function getUsersPage(input: PageInput = {}) {
             : {},
     ],
   };
-  const sortable = ["createdAt", "name", "email"].includes(options.sort)
-    ? options.sort
-    : "createdAt";
+  const orderBy = resolveOrderBy<Prisma.UserOrderByWithRelationInput>(
+    options.sort,
+    options.direction,
+    {
+      createdAt: (direction) => ({ createdAt: direction }),
+      name: (direction) => ({ name: direction }),
+      email: (direction) => ({ email: direction }),
+    },
+    "createdAt",
+  );
   const [items, total] = await Promise.all([
     prisma.user.findMany({
       where,
@@ -199,25 +209,18 @@ export async function getUsersPage(input: PageInput = {}) {
         isBanned: true,
         createdAt: true,
       },
-      orderBy: { [sortable]: options.direction },
-      skip: (options.page - 1) * options.pageSize,
-      take: options.pageSize,
+      orderBy,
+      ...paginationArgs(options),
     }),
     prisma.user.count({ where }),
   ]);
-  return {
-    items,
-    total,
-    page: options.page,
-    pageSize: options.pageSize,
-    pages: Math.max(1, Math.ceil(total / options.pageSize)),
-  };
+  return paginatedResult(items, total, options);
 }
 
 export async function getFoodsPage(input: PageInput = {}) {
   await requireAdmin();
-  const options = pageInput(input);
-  const where = {
+  const options = parsePageInput(input);
+  const where: Prisma.FoodWhereInput = {
     AND: [
       options.search
         ? {
@@ -246,63 +249,63 @@ export async function getFoodsPage(input: PageInput = {}) {
           : {},
     ],
   };
-  const sortable = ["createdAt", "name", "price", "qty"].includes(options.sort)
-    ? options.sort
-    : "createdAt";
+  const orderBy = resolveOrderBy<Prisma.FoodOrderByWithRelationInput>(
+    options.sort,
+    options.direction,
+    {
+      createdAt: (direction) => ({ createdAt: direction }),
+      name: (direction) => ({ name: direction }),
+      price: (direction) => ({ price: direction }),
+      qty: (direction) => ({ qty: direction }),
+    },
+    "createdAt",
+  );
   const [items, total] = await Promise.all([
     prisma.food.findMany({
       where,
-      include: { type: true, orderItems: { select: { id: true } } },
-      orderBy: { [sortable]: options.direction },
-      skip: (options.page - 1) * options.pageSize,
-      take: options.pageSize,
+      include: adminFoodInclude,
+      orderBy,
+      ...paginationArgs(options),
     }),
     prisma.food.count({ where }),
   ]);
-  return {
-    items,
-    total,
-    page: options.page,
-    pageSize: options.pageSize,
-    pages: Math.max(1, Math.ceil(total / options.pageSize)),
-  };
+  return paginatedResult(items, total, options);
 }
 
 export async function getFoodTypesPage(input: PageInput = {}) {
   await requireAdmin();
-  const options = pageInput(input);
-  const where = options.search
+  const options = parsePageInput(input);
+  const where: Prisma.FoodTypeWhereInput = options.search
     ? { name: { contains: options.search, mode: "insensitive" as const } }
     : {};
-  const sortable = ["createdAt", "name"].includes(options.sort)
-    ? options.sort
-    : "name";
+  const orderBy = resolveOrderBy<Prisma.FoodTypeOrderByWithRelationInput>(
+    options.sort,
+    options.direction,
+    {
+      createdAt: (direction) => ({ createdAt: direction }),
+      name: (direction) => ({ name: direction }),
+    },
+    "name",
+  );
   const [items, total] = await Promise.all([
     prisma.foodType.findMany({
       where,
       include: { foods: { select: { id: true } } },
-      orderBy: { [sortable]: options.direction },
-      skip: (options.page - 1) * options.pageSize,
-      take: options.pageSize,
+      orderBy,
+      ...paginationArgs(options),
     }),
     prisma.foodType.count({ where }),
   ]);
-  return {
-    items,
-    total,
-    page: options.page,
-    pageSize: options.pageSize,
-    pages: Math.max(1, Math.ceil(total / options.pageSize)),
-  };
+  return paginatedResult(items, total, options);
 }
 
 export async function getOrdersPage(input: PageInput = {}, finished = false) {
   await requireAdmin();
-  const options = pageInput(input);
+  const options = parsePageInput(input);
   const statuses = finished
     ? ["done", "completed", "cancelled", "canceled"]
     : ["pending", "preparing"];
-  const where = {
+  const where: Prisma.OrderWhereInput = {
     AND: [
       finished ? { adminArchivedAt: null } : {},
       {
@@ -345,18 +348,23 @@ export async function getOrdersPage(input: PageInput = {}, finished = false) {
         : {},
     ],
   };
-  const sortable = ["createdAt", "total", "status", "customerName"].includes(
+  const orderBy = resolveOrderBy<Prisma.OrderOrderByWithRelationInput>(
     options.sort,
-  )
-    ? options.sort
-    : "createdAt";
+    options.direction,
+    {
+      createdAt: (direction) => ({ createdAt: direction }),
+      total: (direction) => ({ total: direction }),
+      status: (direction) => ({ status: direction }),
+      customerName: (direction) => ({ customerName: direction }),
+    },
+    "createdAt",
+  );
   const [items, total, archivedTotal] = await Promise.all([
     prisma.order.findMany({
       where,
-      include: { user: true, items: { include: { food: true } } },
-      orderBy: { [sortable]: options.direction },
-      skip: (options.page - 1) * options.pageSize,
-      take: options.pageSize,
+      include: adminOrderInclude,
+      orderBy,
+      ...paginationArgs(options),
     }),
     prisma.order.count({ where }),
     finished
@@ -372,11 +380,7 @@ export async function getOrdersPage(input: PageInput = {}, finished = false) {
       : Promise.resolve(0),
   ]);
   return {
-    items,
-    total,
-    page: options.page,
-    pageSize: options.pageSize,
-    pages: Math.max(1, Math.ceil(total / options.pageSize)),
+    ...paginatedResult(items, total, options),
     archivedTotal,
   };
 }
@@ -443,38 +447,44 @@ export async function adjustInventory(input: z.input<typeof adjustmentSchema>) {
   const actor = await requireAdmin();
   const parsed = adjustmentSchema.safeParse(input);
   if (!parsed.success) throw new Error(validationMessage(parsed.error));
-  const current = await prisma.food.findUnique({
-    where: { id: parsed.data.foodId },
-  });
-  if (!current) throw new Error("Food was not found.");
-  const updated = await prisma.$transaction(async (tx) => {
-    const food = await tx.food.update({
-      where: { id: current.id },
-      data: { qty: parsed.data.newQty, minStock: parsed.data.minStock },
-    });
-    if (current.qty !== food.qty) {
-      await tx.stockMovement.create({
-        data: {
-          foodId: food.id,
-          adminId: actor.id,
-          change: food.qty - current.qty,
-          previousQty: current.qty,
-          newQty: food.qty,
-          reason: parsed.data.reason,
-        },
+  return prisma.$transaction(
+    async (tx) => {
+      const current = await tx.food.findUnique({
+        where: { id: parsed.data.foodId },
       });
-    }
-    return food;
-  });
-  await writeAuditLog(actor, {
-    action: "ADJUST_INVENTORY",
-    entityType: "Food",
-    entityId: updated.id,
-    changes: {
-      before: { qty: current.qty, minStock: current.minStock },
-      after: { qty: updated.qty, minStock: updated.minStock },
-      reason: parsed.data.reason,
+      if (!current) throw new Error("Food was not found.");
+      const food = await tx.food.update({
+        where: { id: current.id },
+        data: { qty: parsed.data.newQty, minStock: parsed.data.minStock },
+      });
+      if (current.qty !== food.qty) {
+        await tx.stockMovement.create({
+          data: {
+            foodId: food.id,
+            adminId: actor.id,
+            change: food.qty - current.qty,
+            previousQty: current.qty,
+            newQty: food.qty,
+            reason: parsed.data.reason,
+          },
+        });
+      }
+      await writeAuditLog(
+        actor,
+        {
+          action: "ADJUST_INVENTORY",
+          entityType: "Food",
+          entityId: food.id,
+          changes: {
+            before: { qty: current.qty, minStock: current.minStock },
+            after: { qty: food.qty, minStock: food.minStock },
+            reason: parsed.data.reason,
+          },
+        },
+        tx,
+      );
+      return food;
     },
-  });
-  return updated;
+    { isolationLevel: "Serializable" },
+  );
 }

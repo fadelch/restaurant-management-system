@@ -8,8 +8,10 @@ export async function getFoodTypes() {
       orderBy: {
         createdAt: "desc",
       },
-      include: {
-        foods: true,
+      select: {
+        id: true,
+        name: true,
+        createdAt: true,
       },
     });
   } catch (err) {

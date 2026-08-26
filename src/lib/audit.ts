@@ -1,5 +1,6 @@
 import "server-only";
 
+import type { Prisma } from "@/generated/prisma";
 import prisma from "@/lib/prisma";
 
 type Actor = { id: string; email: string | null };
@@ -12,8 +13,9 @@ export async function writeAuditLog(
     entityId?: string | null;
     changes?: unknown;
   },
+  client: Prisma.TransactionClient | typeof prisma = prisma,
 ) {
-  return prisma.auditLog.create({
+  return client.auditLog.create({
     data: {
       adminId: actor.id,
       adminEmail: actor.email || "unknown-admin",

@@ -2,14 +2,14 @@
 
 import { insert_order } from "@/server/insert_order";
 import { getUsers } from "@/server/getUsers";
-import type { User } from "@/types";
+import type { ManagedUser } from "@/types";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { showMessage } from "@/components/MessageProvider";
 
 export default function Page() {
   const router = useRouter();
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<ManagedUser[]>([]);
   const [userId, setUserId] = useState("");
   const [status, setStatus] = useState("Pending");
   const [loading, setLoading] = useState(false);
@@ -21,7 +21,7 @@ export default function Page() {
     const fetchUsers = async () => {
       try {
         const data = await getUsers();
-        setUsers((data as User[]) || []);
+        setUsers(data);
       } catch (err) {
         console.log("Error fetching users:", err);
       }

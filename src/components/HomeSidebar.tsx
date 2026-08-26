@@ -1,6 +1,6 @@
 "use client";
 
-import { useLanguage } from "@/context/LanguageContext";
+import { useTranslation } from "react-i18next";
 
 interface Props {
   open: boolean;
@@ -8,12 +8,12 @@ interface Props {
 }
 
 export default function HomeSidebar({ open, setOpen }: Props) {
-  const { copy } = useLanguage();
+  const { t } = useTranslation();
   const links = [
-    { name: copy.sidebar.top, href: "#top" },
-    { name: copy.sidebar.menu, href: "#menu" },
-    { name: copy.sidebar.about, href: "#about" },
-    { name: copy.sidebar.contact, href: "#contact" },
+    { name: t("sidebar.top"), href: "#top" },
+    { name: t("sidebar.menu"), href: "#menu" },
+    { name: t("sidebar.about"), href: "#about" },
+    { name: t("sidebar.contact"), href: "#contact" },
   ];
 
   return (
@@ -22,7 +22,7 @@ export default function HomeSidebar({ open, setOpen }: Props) {
         type="button"
         onClick={() => setOpen(!open)}
         className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border border-red-800 bg-red-900 text-xl text-white shadow-md transition hover:scale-105"
-        aria-label={open ? copy.sidebar.close : copy.sidebar.open}
+        aria-label={open ? t("sidebar.close") : t("sidebar.open")}
         aria-expanded={open}
       >
         {open ? "‹" : "›"}
@@ -32,7 +32,7 @@ export default function HomeSidebar({ open, setOpen }: Props) {
         <aside className="w-[260px]">
           <div className="rounded-2xl border border-neutral-800 bg-[#111111] p-4 shadow-md sm:p-5">
             <h3 className="mb-4 text-xl font-bold text-red-500">
-              {copy.sidebar.title}
+              {t("sidebar.title")}
             </h3>
 
             <nav className="flex flex-col gap-3">

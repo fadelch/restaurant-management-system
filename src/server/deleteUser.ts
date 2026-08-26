@@ -33,6 +33,14 @@ export async function deleteUser(data: {
       where: {
         id: userId,
       },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        isAdmin: true,
+        isBanned: true,
+        createdAt: true,
+      },
     });
     await writeAuditLog(actor, {
       action: "DELETE_USER",

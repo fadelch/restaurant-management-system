@@ -8,9 +8,9 @@ import { showMessage } from "@/components/MessageProvider";
 
 export default function DeleteFoodTypePage() {
   const router = useRouter();
-  const params = useParams();
+  const params = useParams<{ id: string }>();
 
-  const id = params.id as string;
+  const id = params.id;
 
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);

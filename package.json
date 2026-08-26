@@ -5,14 +5,19 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
+    "lint": "eslint .",
+    "smoke": "node scripts/browser-health-check.mjs",
+    "test": "tsx --test src/**/*.test.ts",
     "start": "next start"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
     "bcrypt": "^6.0.0",
+    "i18next": "^26.4.0",
     "next": "^15.5.22",
     "react": "19.1.0",
     "react-dom": "19.1.0",
+    "react-i18next": "^17.0.12",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -21,6 +26,8 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^15.5.22",
     "prisma": "^6.16.2",
     "tailwindcss": "^4",
     "tsx": "^4.20.5",
