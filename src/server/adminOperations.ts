@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import prisma from "@/lib/prisma";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdmin, requireRateLimitedAdmin } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { idSchema, validationMessage } from "@/lib/validation";
 
@@ -105,7 +105,7 @@ export async function getAdminOperations() {
 }
 
 export async function saveDeliveryZone(input: z.input<typeof zoneSchema>) {
-  const actor = await requireAdmin();
+  const actor = await requireRateLimitedAdmin();
   const data = parseOrThrow(zoneSchema.safeParse(input));
   const before = data.id
     ? await prisma.deliveryZone.findUnique({ where: { id: data.id } })
@@ -142,7 +142,7 @@ export async function saveDeliveryZone(input: z.input<typeof zoneSchema>) {
 }
 
 export async function deleteDeliveryZone(id: string) {
-  const actor = await requireAdmin();
+  const actor = await requireRateLimitedAdmin();
   const validId = parseOrThrow(idSchema.safeParse(id));
   const before = await prisma.deliveryZone.delete({ where: { id: validId } });
   await writeAuditLog(actor, {
@@ -156,7 +156,7 @@ export async function deleteDeliveryZone(id: string) {
 export async function saveRestaurantHours(
   input: z.input<typeof weeklyHoursSchema>,
 ) {
-  const actor = await requireAdmin();
+  const actor = await requireRateLimitedAdmin();
   const data = parseOrThrow(weeklyHoursSchema.safeParse(input));
   const before = await prisma.restaurantHours.findMany({
     orderBy: { dayOfWeek: "asc" },
@@ -180,7 +180,7 @@ export async function saveRestaurantHours(
 }
 
 export async function saveCoupon(input: unknown) {
-  const actor = await requireAdmin();
+  const actor = await requireRateLimitedAdmin();
   const data = parseOrThrow(couponSchema.safeParse(input));
   if (data.discountType === "percentage" && data.value > 100)
     throw new Error("Percentage discounts cannot be greater than 100%.");
@@ -212,7 +212,7 @@ export async function saveCoupon(input: unknown) {
 }
 
 export async function deleteCoupon(id: string) {
-  const actor = await requireAdmin();
+  const actor = await requireRateLimitedAdmin();
   const validId = parseOrThrow(idSchema.safeParse(id));
   const before = await prisma.coupon.delete({ where: { id: validId } });
   await writeAuditLog(actor, {

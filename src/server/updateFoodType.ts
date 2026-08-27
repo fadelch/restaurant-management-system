@@ -1,13 +1,13 @@
 "use server";
 
 import prisma from "@/lib/prisma";
-import { requireAdmin } from "@/lib/auth";
+import { requireRateLimitedAdmin } from "@/lib/auth";
 import { idSchema } from "@/lib/validation";
 import { writeAuditLog } from "@/lib/audit";
 import { z } from "zod";
 
 export async function updateFoodType(data: { id: string; name: string }) {
-  const actor = await requireAdmin();
+  const actor = await requireRateLimitedAdmin();
   const id = idSchema.parse(data.id);
   const name = z.string().trim().min(1).max(80).parse(data.name);
   const previous = await prisma.foodType.findUnique({ where: { id } });

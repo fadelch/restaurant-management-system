@@ -284,6 +284,7 @@ try {
         const paint = performance.getEntriesByName("first-contentful-paint")[0];
         const resources = performance.getEntriesByType("resource").map((entry) => ({
           name: entry.name,
+          startTime: Math.round(entry.startTime),
           duration: Math.round(entry.duration),
           responseEnd: Math.round(entry.responseEnd),
           transferSize: entry.transferSize,
@@ -371,12 +372,28 @@ try {
       textLength: page.textLength,
       hasRuntimeError: page.hasRuntimeError,
       horizontalOverflow: page.horizontalOverflow,
+      imageCount: page.images.length,
       brokenImages,
       console: activeCapture.console,
       httpErrors: activeCapture.httpErrors,
       networkFailures: activeCapture.networkFailures,
       metrics: page.metrics,
       network: page.network,
+      imageResources: page.resources
+        .filter(
+          (resource) =>
+            resource.initiatorType === "img" ||
+            resource.name.includes("/_next/image?"),
+        )
+        .sort((first, second) => second.transferSize - first.transferSize),
+      initialJavaScript: {
+        requestCount: page.resources.filter(
+          (resource) => resource.initiatorType === "script",
+        ).length,
+        transferredBytes: page.resources
+          .filter((resource) => resource.initiatorType === "script")
+          .reduce((total, resource) => total + resource.transferSize, 0),
+      },
       slowResources,
       largestResources,
     };
@@ -473,6 +490,8 @@ try {
       "x-frame-options",
       "referrer-policy",
       "permissions-policy",
+      "content-security-policy",
+      "strict-transport-security",
     ].map((name) => [name, headerResponse.headers.get(name)]),
   );
 

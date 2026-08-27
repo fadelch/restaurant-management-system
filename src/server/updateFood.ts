@@ -1,7 +1,7 @@
 "use server";
 
 import prisma from "@/lib/prisma";
-import { requireAdmin } from "@/lib/auth";
+import { requireRateLimitedAdmin } from "@/lib/auth";
 import { foodSchema, idSchema, validationMessage } from "@/lib/validation";
 import { writeAuditLog } from "@/lib/audit";
 import { deleteUploadedFoodImage } from "@/lib/uploads";
@@ -20,7 +20,7 @@ export async function updateFood(data: {
   typeId: string;
 }) {
   try {
-    const actor = await requireAdmin();
+    const actor = await requireRateLimitedAdmin();
     const idResult = idSchema.safeParse(data.id);
     if (!idResult.success) throw new Error(validationMessage(idResult.error));
     const parsed = foodSchema.safeParse({

@@ -1,12 +1,12 @@
 "use server";
 
 import prisma from "@/lib/prisma";
-import { requireAdmin } from "@/lib/auth";
+import { requireRateLimitedAdmin } from "@/lib/auth";
 import { idSchema } from "@/lib/validation";
 import { writeAuditLog } from "@/lib/audit";
 
 export async function deleteFoodType(id: string) {
-  const actor = await requireAdmin();
+  const actor = await requireRateLimitedAdmin();
   id = idSchema.parse(id);
 
   const foodsUsingType = await prisma.food.count({

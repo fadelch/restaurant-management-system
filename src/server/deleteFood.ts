@@ -1,14 +1,14 @@
 "use server";
 
 import prisma from "@/lib/prisma";
-import { requireAdmin } from "@/lib/auth";
+import { requireRateLimitedAdmin } from "@/lib/auth";
 import { idSchema, validationMessage } from "@/lib/validation";
 import { writeAuditLog } from "@/lib/audit";
 import { deleteUploadedFoodImage } from "@/lib/uploads";
 
 export async function deleteFood(id: string) {
   try {
-    const actor = await requireAdmin();
+    const actor = await requireRateLimitedAdmin();
     const parsed = idSchema.safeParse(id);
     if (!parsed.success) throw new Error(validationMessage(parsed.error));
     const food = await prisma.food.findUnique({

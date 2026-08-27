@@ -16,10 +16,19 @@ export const managedUserSelect = {
   orders: { select: { id: true } },
 } satisfies Prisma.UserSelect;
 
-export const menuFoodInclude = {
-  type: true,
-  orderItems: { select: { id: true, quantity: true } },
-} satisfies Prisma.FoodInclude;
+export const publicMenuFoodSelect = {
+  id: true,
+  name: true,
+  description: true,
+  ingredients: true,
+  optionalIngredients: true,
+  extraCheesePrice: true,
+  qty: true,
+  price: true,
+  image: true,
+  typeId: true,
+  type: { select: { id: true, name: true } },
+} satisfies Prisma.FoodSelect;
 
 export const adminFoodInclude = {
   type: true,
@@ -45,4 +54,3 @@ export function customerOrderInclude(userId: string) {
     },
   } satisfies Prisma.OrderInclude;
 }
-

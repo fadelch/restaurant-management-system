@@ -1,7 +1,7 @@
 "use server";
 
 import prisma from "@/lib/prisma";
-import { requireAdmin } from "@/lib/auth";
+import { requireRateLimitedAdmin } from "@/lib/auth";
 import {
   idSchema,
   orderStatusSchema,
@@ -12,7 +12,7 @@ import { publicUserSelect } from "@/lib/prismaSelects";
 
 export async function insert_order(data: { userId: string; status: string }) {
   try {
-    const actor = await requireAdmin();
+    const actor = await requireRateLimitedAdmin();
     const idResult = idSchema.safeParse(data.userId);
     if (!idResult.success) throw new Error(validationMessage(idResult.error));
     const userId = idResult.data;

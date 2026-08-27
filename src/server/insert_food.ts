@@ -1,7 +1,7 @@
 "use server";
 
 import prisma from "@/lib/prisma";
-import { requireAdmin } from "@/lib/auth";
+import { requireRateLimitedAdmin } from "@/lib/auth";
 import { foodSchema, validationMessage } from "@/lib/validation";
 import { writeAuditLog } from "@/lib/audit";
 
@@ -18,7 +18,7 @@ export async function insert_food(data: {
   typeId: string;
 }) {
   try {
-    const actor = await requireAdmin();
+    const actor = await requireRateLimitedAdmin();
     const parsed = foodSchema.safeParse({
       ...data,
       minStock: data.minStock ?? 5,

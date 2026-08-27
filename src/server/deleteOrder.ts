@@ -1,7 +1,7 @@
 "use server";
 
 import prisma from "@/lib/prisma";
-import { requireAdmin } from "@/lib/auth";
+import { requireRateLimitedAdmin } from "@/lib/auth";
 import { idSchema, validationMessage } from "@/lib/validation";
 import { writeAuditLog } from "@/lib/audit";
 
@@ -16,7 +16,7 @@ function normalizeStatus(status: string) {
 }
 
 export async function deleteOrder(id: string) {
-  const actor = await requireAdmin();
+  const actor = await requireRateLimitedAdmin();
   const parsed = idSchema.safeParse(id);
   if (!parsed.success) throw new Error(validationMessage(parsed.error));
   const validId = parsed.data;

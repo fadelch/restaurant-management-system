@@ -61,6 +61,8 @@ model Food {
 model Order {
   id               String    @id @default(uuid())
   orderNumber      String?   @unique
+  checkoutRequestId   String?
+  checkoutRequestHash String?
   userId           String
   total            Float
   subtotal         Float     @default(0)
@@ -94,6 +96,7 @@ model Order {
 
   @@index([paymentStatus])
   @@index([adminArchivedAt])
+  @@unique([userId, checkoutRequestId])
 }
 
 model OrderItem {

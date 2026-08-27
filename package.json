@@ -4,20 +4,33 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
+    "postinstall": "prisma generate",
     "build": "next build --turbopack",
     "lint": "eslint .",
+    "security:audit-passwords": "tsx scripts/migrate-password-hashes.ts",
+    "security:migrate-passwords": "tsx scripts/migrate-password-hashes.ts --apply",
     "smoke": "node scripts/browser-health-check.mjs",
+    "test:rate-limit": "tsx scripts/test-upstash-rate-limit.ts",
+    "test:checkout": "tsx --conditions=react-server scripts/checkout-concurrency-test.ts",
+    "test:authorization": "tsx --conditions=react-server scripts/authorization-boundary-test.ts",
+    "test:database-outage": "tsx scripts/database-outage-probe.ts",
     "test": "tsx --test src/**/*.test.ts",
+    "package:source": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-source.ps1",
     "start": "next start"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
+    "@sentry/nextjs": "^10.71.0",
+    "@upstash/ratelimit": "^2.0.8",
+    "@upstash/redis": "^1.38.3",
+    "@vercel/blob": "^2.8.0",
     "bcrypt": "^6.0.0",
     "i18next": "^26.4.0",
-    "next": "^15.5.22",
+    "next": "^15.5.24",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-i18next": "^17.0.12",
+    "server-only": "^0.0.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -27,10 +40,14 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9.39.5",
-    "eslint-config-next": "^15.5.22",
-    "prisma": "^6.16.2",
+    "eslint-config-next": "^15.5.24",
+    "prisma": "^6.19.3",
     "tailwindcss": "^4",
     "tsx": "^4.20.5",
     "typescript": "^5"
+  },
+  "overrides": {
+    "deepmerge-ts": "8.0.2",
+    "postcss": "8.5.25"
   }
 }

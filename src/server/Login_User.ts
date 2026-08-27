@@ -1,10 +1,14 @@
 "use server";
 
 import prisma from "@/lib/prisma";
-import { compare, hash } from "bcrypt";
+import { compare } from "bcrypt";
 import { z } from "zod";
 import { isSuperAdminEmail, setAuthSession } from "@/lib/auth";
 import { emailSchema, validationMessage } from "@/lib/validation";
+import {
+  enforceRateLimit,
+  requestIpAddress,
+} from "@/lib/rateLimit";
 
 type LoginResult =
   | {
@@ -21,6 +25,12 @@ type LoginResult =
   | { success: false; error: string };
 
 export async function Login_User(data: { email: string; password: string }) {
+  const requestIp = await requestIpAddress();
+  await enforceRateLimit({
+    policy: "login-ip",
+    identifier: requestIp,
+    failurePolicy: "closed",
+  });
   const parsed = z
     .object({
       email: emailSchema,
@@ -34,6 +44,11 @@ export async function Login_User(data: { email: string; password: string }) {
     } satisfies LoginResult;
   }
   const { email, password } = parsed.data;
+  await enforceRateLimit({
+    policy: "login-account",
+    identifier: email,
+    failurePolicy: "closed",
+  });
 
   const user = await prisma.user.findFirst({
     where: {
@@ -54,27 +69,17 @@ export async function Login_User(data: { email: string; password: string }) {
   if (user.isBanned) {
     return {
       success: false,
-      error: "This account is banned. Please contact the admin.",
+      error: "Invalid email or password.",
     } satisfies LoginResult;
   }
 
-  const savedPassword = user.password.trim();
-  const passwordMatches = savedPassword.startsWith("$2")
-    ? await compare(password, savedPassword)
-    : savedPassword === password;
+  const passwordMatches = await compare(password, user.password);
 
   if (!passwordMatches) {
     return {
       success: false,
       error: "Invalid email or password.",
     } satisfies LoginResult;
-  }
-
-  if (!savedPassword.startsWith("$2")) {
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { password: await hash(password, 12), confirm_password: null },
-    });
   }
 
   await setAuthSession(user.id);

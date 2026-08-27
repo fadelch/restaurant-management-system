@@ -2,7 +2,12 @@
 
 import { z } from "zod";
 import prisma from "@/lib/prisma";
-import { requireAdmin, requireUser } from "@/lib/auth";
+import {
+  requireAdmin,
+  requireRateLimitedAdmin,
+  requireUser,
+} from "@/lib/auth";
+import { enforceRateLimit } from "@/lib/rateLimit";
 import { writeAuditLog } from "@/lib/audit";
 import {
   foodIssueReasonSchema,
@@ -33,6 +38,11 @@ export async function submitFoodIssueReport(
   input: z.input<typeof submitIssueSchema>,
 ) {
   const user = await requireUser();
+  await enforceRateLimit({
+    policy: "food-issue-user",
+    identifier: user.id,
+    failurePolicy: "closed",
+  });
   const parsed = submitIssueSchema.safeParse(input);
   if (!parsed.success) throw new Error(validationMessage(parsed.error));
 
@@ -120,7 +130,7 @@ export async function getFoodIssueReportsForAdmin() {
 export async function reviewFoodIssueReport(
   input: z.input<typeof reviewIssueSchema>,
 ) {
-  const actor = await requireAdmin();
+  const actor = await requireRateLimitedAdmin();
   const parsed = reviewIssueSchema.safeParse(input);
   if (!parsed.success) throw new Error(validationMessage(parsed.error));
   const data = parsed.data;
