@@ -2,7 +2,11 @@
 
 import type { Prisma } from "@/generated/prisma";
 import prisma from "@/lib/prisma";
-import { requireAdmin, requireUser } from "@/lib/auth";
+import {
+  requireAdmin,
+  requireRateLimitedAdmin,
+  requireUser,
+} from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { idSchema, validationMessage } from "@/lib/validation";
 import {
@@ -106,7 +110,7 @@ export async function getAnnouncementPage(input: PageInput = {}) {
 }
 
 export async function createAnnouncement(input: AnnouncementInput) {
-  const actor = await requireAdmin();
+  const actor = await requireRateLimitedAdmin();
   const data = parseAnnouncement(input);
 
   return prisma.$transaction(async (tx) => {
@@ -135,7 +139,7 @@ export async function createAnnouncement(input: AnnouncementInput) {
 }
 
 export async function updateAnnouncement(input: AnnouncementInput) {
-  const actor = await requireAdmin();
+  const actor = await requireRateLimitedAdmin();
   const data = parseAnnouncement(input);
   if (!data.id) throw new Error("Announcement ID is required.");
 
@@ -176,7 +180,7 @@ export async function setAnnouncementPublished(input: {
   id: string;
   published: boolean;
 }) {
-  const actor = await requireAdmin();
+  const actor = await requireRateLimitedAdmin();
   const id = parseId(input.id);
 
   return prisma.$transaction(async (tx) => {
@@ -231,7 +235,7 @@ export async function setAnnouncementPublished(input: {
 }
 
 export async function deleteAnnouncement(id: string) {
-  const actor = await requireAdmin();
+  const actor = await requireRateLimitedAdmin();
   const validId = parseId(id);
 
   return prisma.$transaction(async (tx) => {
@@ -288,4 +292,3 @@ export async function getPublishedAnnouncementById(id: string) {
     select: publishedSelect,
   });
 }
-

@@ -2,7 +2,7 @@
 
 import prisma from "@/lib/prisma";
 import { z } from "zod";
-import { requireAdmin } from "@/lib/auth";
+import { requireRateLimitedAdmin } from "@/lib/auth";
 import { idSchema, validationMessage } from "@/lib/validation";
 import { writeAuditLog } from "@/lib/audit";
 
@@ -18,7 +18,7 @@ export async function insert_order_item(data: {
   quantity: number;
 }) {
   try {
-    const actor = await requireAdmin();
+    const actor = await requireRateLimitedAdmin();
     const parsed = schema.safeParse(data);
     if (!parsed.success) throw new Error(validationMessage(parsed.error));
     const { orderId, foodId, quantity } = parsed.data;

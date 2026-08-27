@@ -1,7 +1,10 @@
 "use server";
 
 import prisma from "@/lib/prisma";
-import { isSuperAdminEmail, requireSuperAdmin } from "@/lib/auth";
+import {
+  isSuperAdminEmail,
+  requireRateLimitedSuperAdmin,
+} from "@/lib/auth";
 import { idSchema, validationMessage } from "@/lib/validation";
 import { writeAuditLog } from "@/lib/audit";
 
@@ -10,7 +13,7 @@ export async function deleteUser(data: {
   userId: string;
 }) {
   try {
-    const actor = await requireSuperAdmin();
+    const actor = await requireRateLimitedSuperAdmin();
     const parsed = idSchema.safeParse(data.userId);
     if (!parsed.success) throw new Error(validationMessage(parsed.error));
     const userId = parsed.data;

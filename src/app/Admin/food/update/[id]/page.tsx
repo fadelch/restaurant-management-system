@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { getFoodById } from "@/server/getFoodById";
+import { getAdminFoodById } from "@/server/getFoodById";
 import { updateFood } from "@/server/updateFood";
 import { getFoodTypes } from "@/server/getFoodTypes";
 import { formatUsdWithLbp } from "@/lib/currency";
@@ -50,7 +50,7 @@ export default function UpdateFoodPage() {
     const fetchData = async () => {
       try {
         const [food, types] = await Promise.all([
-          getFoodById(id),
+          getAdminFoodById(id),
           getFoodTypes(),
         ]);
 

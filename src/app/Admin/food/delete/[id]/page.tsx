@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
-import { getFoodById } from "@/server/getFoodById";
+import { getAdminFoodById } from "@/server/getFoodById";
 import { deleteFood } from "@/server/deleteFood";
 import { formatUsdWithLbp } from "@/lib/currency";
 import { showMessage } from "@/components/MessageProvider";
@@ -25,7 +25,7 @@ export default function DeleteFoodPage() {
   useEffect(() => {
     const fetchFood = async () => {
       try {
-        const data = await getFoodById(id);
+        const data = await getAdminFoodById(id);
 
         if (!data) {
           showMessage("Food not found.");

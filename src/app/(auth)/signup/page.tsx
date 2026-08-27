@@ -1,7 +1,6 @@
 "use client";
 
 import Image from "next/image";
-import { signupUser } from "@/server/signupUser";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { showMessage } from "@/components/MessageProvider";
@@ -62,12 +61,25 @@ export default function Page() {
     try {
       setLoading(true);
 
-      await signupUser({
-        name,
-        email,
-        password,
-        confirm_password: confirm_pas,
+      const response = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          email,
+          password,
+          confirm_password: confirm_pas,
+        }),
       });
+      const result = (await response.json()) as {
+        success: boolean;
+        error?: string;
+      };
+      if (!response.ok || !result.success) {
+        throw new Error(
+          result.error || "Unable to create an account with these details.",
+        );
+      }
 
       showMessage("User registered successfully!");
       clearFields();

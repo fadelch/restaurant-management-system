@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import prisma from "@/lib/prisma";
-import { requireAdmin } from "@/lib/auth";
+import { requireRateLimitedAdmin } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import {
   idSchema,
@@ -18,7 +18,7 @@ const updatePaymentSchema = z.object({
 export async function updatePaymentStatus(
   input: z.input<typeof updatePaymentSchema>,
 ) {
-  const actor = await requireAdmin();
+  const actor = await requireRateLimitedAdmin();
   const parsed = updatePaymentSchema.safeParse(input);
   if (!parsed.success) throw new Error(validationMessage(parsed.error));
 

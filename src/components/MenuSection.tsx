@@ -55,17 +55,7 @@ export default function MenuSection({
       if (sort === "price-high") return second.price - first.price;
 
       if (sort === "popular") {
-        const firstSales =
-          first.orderItems?.reduce(
-            (sum, item) => sum + (item.quantity || 0),
-            0,
-          ) || 0;
-        const secondSales =
-          second.orderItems?.reduce(
-            (sum, item) => sum + (item.quantity || 0),
-            0,
-          ) || 0;
-        return secondSales - firstSales;
+        return (second.popularity || 0) - (first.popularity || 0);
       }
 
       return 0;

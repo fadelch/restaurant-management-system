@@ -1,6 +1,5 @@
 "use client";
 
-import { Login_User } from "@/server/Login_User";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Link from "next/link";
@@ -47,14 +46,25 @@ export default function Page() {
       setLoading(true);
       clearSession();
 
-      const result = await Login_User({
-        email,
-        password,
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
       });
+      const result = (await response.json()) as {
+        success: boolean;
+        error?: string;
+        user?: {
+          email: string;
+          isAdmin: boolean;
+          isSuperAdmin: boolean;
+        };
+      };
 
-      if (!result.success) {
-        setFormError(result.error);
-        showMessage(result.error);
+      if (!response.ok || !result.success || !result.user) {
+        const message = result.error || "Invalid email or password.";
+        setFormError(message);
+        showMessage(message);
         return;
       }
       const { user } = result;

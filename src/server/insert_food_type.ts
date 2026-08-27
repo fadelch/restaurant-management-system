@@ -1,13 +1,13 @@
 "use server";
 
 import prisma from "@/lib/prisma";
-import { requireAdmin } from "@/lib/auth";
+import { requireRateLimitedAdmin } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { z } from "zod";
 
 export async function insert_food_type(data: { name: string }) {
   try {
-    const actor = await requireAdmin();
+    const actor = await requireRateLimitedAdmin();
     const name = z
       .string()
       .trim()

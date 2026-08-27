@@ -8,6 +8,10 @@ import {
   passwordSchema,
   validationMessage,
 } from "@/lib/validation";
+import {
+  enforceRateLimit,
+  requestIpAddress,
+} from "@/lib/rateLimit";
 
 export async function signupUser(data: {
   name: string;
@@ -17,6 +21,11 @@ export async function signupUser(data: {
   confirm_pas?: string;
 }) {
   try {
+    await enforceRateLimit({
+      policy: "signup-ip",
+      identifier: await requestIpAddress(),
+      failurePolicy: "closed",
+    });
     const confirmPassword = data.confirm_password || data.confirm_pas || "";
     const parsed = z
       .object({

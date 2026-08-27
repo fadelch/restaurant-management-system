@@ -4,6 +4,11 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
+import { enforceRateLimit } from "@/lib/rateLimit";
+import {
+  assertAdminAccess,
+  assertSuperAdminAccess,
+} from "@/lib/authorization";
 
 const SESSION_COOKIE = "restaurant_session";
 const SESSION_DURATION_SECONDS = 60 * 60 * 24 * 7;
@@ -126,12 +131,32 @@ export async function requireUser() {
 
 export async function requireAdmin() {
   const user = await requireUser();
-  if (!user.hasAdminAccess) throw new Error("Admin access is required.");
+  assertAdminAccess(user);
   return user;
 }
 
 export async function requireSuperAdmin() {
   const user = await requireAdmin();
-  if (!user.isSuperAdmin) throw new Error("Super Admin access is required.");
+  assertSuperAdminAccess(user);
+  return user;
+}
+
+export async function requireRateLimitedAdmin() {
+  const user = await requireAdmin();
+  await enforceRateLimit({
+    policy: "admin-user",
+    identifier: user.id,
+    failurePolicy: "closed",
+  });
+  return user;
+}
+
+export async function requireRateLimitedSuperAdmin() {
+  const user = await requireSuperAdmin();
+  await enforceRateLimit({
+    policy: "admin-user",
+    identifier: user.id,
+    failurePolicy: "closed",
+  });
   return user;
 }

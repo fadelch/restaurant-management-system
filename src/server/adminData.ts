@@ -3,7 +3,7 @@
 import { z } from "zod";
 import type { Prisma } from "@/generated/prisma";
 import prisma from "@/lib/prisma";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdmin, requireRateLimitedAdmin } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import {
   idSchema,
@@ -386,7 +386,7 @@ export async function getOrdersPage(input: PageInput = {}, finished = false) {
 }
 
 export async function clearFinishedOrders() {
-  const actor = await requireAdmin();
+  const actor = await requireRateLimitedAdmin();
   const archivedAt = new Date();
   const result = await prisma.order.updateMany({
     where: {
@@ -410,7 +410,7 @@ export async function clearFinishedOrders() {
 }
 
 export async function restoreFinishedOrders() {
-  const actor = await requireAdmin();
+  const actor = await requireRateLimitedAdmin();
   const result = await prisma.order.updateMany({
     where: {
       adminArchivedAt: { not: null },
@@ -444,7 +444,7 @@ const adjustmentSchema = z.object({
 });
 
 export async function adjustInventory(input: z.input<typeof adjustmentSchema>) {
-  const actor = await requireAdmin();
+  const actor = await requireRateLimitedAdmin();
   const parsed = adjustmentSchema.safeParse(input);
   if (!parsed.success) throw new Error(validationMessage(parsed.error));
   return prisma.$transaction(

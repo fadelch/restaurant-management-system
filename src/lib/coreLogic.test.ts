@@ -16,6 +16,17 @@ import {
   parsePageInput,
 } from "@/lib/pagination";
 import { resolveOrderBy } from "@/lib/sorting";
+import {
+  checkoutRequestHash,
+  databaseNativeErrorCode,
+  isRetryableCheckoutError,
+  withCheckoutRetry,
+} from "@/lib/checkoutSafety";
+import { scrubSentryEvent } from "@/lib/sentryPrivacy";
+import {
+  assertAdminAccess,
+  assertSuperAdminAccess,
+} from "@/lib/authorization";
 
 describe("security-sensitive input validation", () => {
   it("accepts a strong password and rejects weak passwords", () => {
@@ -87,5 +98,91 @@ describe("food customization normalization", () => {
       () => parseOptionalIngredientsText("Olives:1, olives:2"),
       /listed more than once/,
     );
+  });
+});
+
+describe("checkout safety primitives", () => {
+  it("creates deterministic hashes without depending on object key order", () => {
+    assert.equal(
+      checkoutRequestHash({ customer: "A", items: [{ id: "1", qty: 2 }] }),
+      checkoutRequestHash({ items: [{ qty: 2, id: "1" }], customer: "A" }),
+    );
+    assert.notEqual(
+      checkoutRequestHash({ items: [{ id: "1", qty: 2 }] }),
+      checkoutRequestHash({ items: [{ id: "1", qty: 3 }] }),
+    );
+  });
+
+  it("retries only bounded transient Prisma transaction errors", async () => {
+    let attempts = 0;
+    const result = await withCheckoutRetry(
+      async () => {
+        attempts += 1;
+        if (attempts < 3) throw Object.assign(new Error("transient"), { code: "P2034" });
+        return "completed";
+      },
+      { delay: async () => {} },
+    );
+    assert.equal(result, "completed");
+    assert.equal(attempts, 3);
+    assert.equal(isRetryableCheckoutError({ code: "P2028" }), true);
+    assert.equal(isRetryableCheckoutError({ code: "P2002" }), false);
+    const serializationFailure = {
+      code: "P2010",
+      meta: {
+        driverAdapterError: { cause: { originalCode: "40001" } },
+      },
+    };
+    assert.equal(databaseNativeErrorCode(serializationFailure), "40001");
+    assert.equal(isRetryableCheckoutError(serializationFailure), true);
+  });
+});
+
+describe("Sentry privacy", () => {
+  it("removes request bodies, credentials, and known secret values", () => {
+    const previousDatabaseUrl = process.env.DATABASE_URL;
+    process.env.DATABASE_URL = "postgresql://private-test-value";
+    try {
+      const event = scrubSentryEvent({
+        type: undefined,
+        message: "Failure at postgresql://private-test-value",
+        request: {
+          data: { password: "private" },
+          cookies: { session: "private" },
+          query_string: "token=private",
+          headers: {
+            authorization: "Bearer private",
+            accept: "application/json",
+          },
+        },
+        user: { id: "user-id", email: "private@example.com" },
+        extra: { password: "private", operation: "checkout" },
+      });
+
+      assert.equal(event.request?.data, undefined);
+      assert.equal(event.request?.cookies, undefined);
+      assert.equal(event.request?.query_string, undefined);
+      assert.deepEqual(event.request?.headers, { accept: "application/json" });
+      assert.deepEqual(event.user, { id: "user-id" });
+      assert.equal(event.extra?.password, "[Filtered]");
+      assert.equal(event.extra?.operation, "checkout");
+      assert.equal(event.message, "Failure at [Filtered]");
+    } finally {
+      if (previousDatabaseUrl === undefined) delete process.env.DATABASE_URL;
+      else process.env.DATABASE_URL = previousDatabaseUrl;
+    }
+  });
+});
+
+describe("role authorization", () => {
+  it("denies customers and keeps Super Admin actions distinct", () => {
+    const customer = { hasAdminAccess: false, isSuperAdmin: false };
+    const admin = { hasAdminAccess: true, isSuperAdmin: false };
+    const superAdmin = { hasAdminAccess: true, isSuperAdmin: true };
+
+    assert.throws(() => assertAdminAccess(customer), /Admin access/);
+    assert.doesNotThrow(() => assertAdminAccess(admin));
+    assert.throws(() => assertSuperAdminAccess(admin), /Super Admin access/);
+    assert.doesNotThrow(() => assertSuperAdminAccess(superAdmin));
   });
 });

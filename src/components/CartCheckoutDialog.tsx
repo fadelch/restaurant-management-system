@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { showMessage } from "@/components/MessageProvider";
 import { useCart } from "@/context/CartContext";
@@ -32,6 +32,10 @@ export default function CartCheckoutDialog({
   const [couponCode, setCouponCode] = useState("");
   const [settings, setSettings] = useState<CheckoutSettings | null>(null);
   const [settingsError, setSettingsError] = useState("");
+  const checkoutAttempt = useRef<{
+    fingerprint: string;
+    requestId: string;
+  } | null>(null);
   const selectedZone = settings?.zones.find(
     (zone) => zone.id === deliveryZoneId,
   );
@@ -107,7 +111,7 @@ export default function CartCheckoutDialog({
 
     try {
       setPurchasing(true);
-      const order = await purchaseCart({
+      const checkoutPayload = {
         items: cartItems.map((item) => ({
           id: item.id,
           cartQty: item.cartQty,
@@ -127,8 +131,20 @@ export default function CartCheckoutDialog({
         deliveryZoneId:
           fulfillmentType === "delivery" ? deliveryZoneId : undefined,
         couponCode: couponCode || undefined,
+      };
+      const fingerprint = JSON.stringify(checkoutPayload);
+      if (checkoutAttempt.current?.fingerprint !== fingerprint) {
+        checkoutAttempt.current = {
+          fingerprint,
+          requestId: crypto.randomUUID(),
+        };
+      }
+      const order = await purchaseCart({
+        ...checkoutPayload,
+        checkoutRequestId: checkoutAttempt.current.requestId,
       });
       showMessage("Order placed successfully!");
+      checkoutAttempt.current = null;
       clearCart();
       router.push(`/order-confirmation/${order.id}`);
       router.refresh();
