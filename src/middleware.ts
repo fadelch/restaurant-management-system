@@ -4,10 +4,17 @@ const SESSION_COOKIE = "restaurant_session";
 
 function contentSecurityPolicy(nonce: string) {
   const development = process.env.NODE_ENV !== "production";
+  const trustedStyleSources =
+    `'self' 'nonce-${nonce}' ` +
+    `'sha256-Z5XTK23DFuEMs0PwnyZDO9SWxemQ5HxcpVaBNuUJyWY='`;
   return [
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${development ? " 'unsafe-eval'" : ""}`,
-    `style-src 'self' 'nonce-${nonce}' 'sha256-Z5XTK23DFuEMs0PwnyZDO9SWxemQ5HxcpVaBNuUJyWY='`,
+    `style-src ${trustedStyleSources}`,
+    // Next 15's development overlay injects styles into its shadow DOM without
+    // propagating the request nonce. Keep this exception dev-only and limited
+    // to <style>/<link>; production style elements still require nonce/hash.
+    `style-src-elem ${development ? "'self' 'unsafe-inline'" : trustedStyleSources}`,
     "style-src-attr 'unsafe-inline'",
     "img-src 'self' data: blob: https://*.public.blob.vercel-storage.com",
     "font-src 'self' data:",

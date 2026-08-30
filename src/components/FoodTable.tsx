@@ -177,20 +177,21 @@ export default function FoodTable() {
 
                       <td className="px-5 py-4">
                         <span className="rounded-lg border border-white/10 bg-white/5 px-3 py-1 font-bold">
-                          {food.orderItems?.length || 0}
+                          {food._count.orderItems}
                         </span>
                       </td>
 
                       <td className="px-5 py-4">
                         {food.image ? (
-                          <Image
-                            src={food.image}
-                            alt={food.name}
-                            width={56}
-                            height={56}
-                            sizes="56px"
-                            className="h-14 w-14 rounded-xl object-cover"
-                          />
+                          <div className="relative h-14 w-14 overflow-hidden rounded-xl">
+                            <Image
+                              src={food.image}
+                              alt={food.name}
+                              fill
+                              sizes="56px"
+                              className="object-cover"
+                            />
+                          </div>
                         ) : (
                           <span className="text-gray-500">No image</span>
                         )}

@@ -1,18 +1,20 @@
-import i18n from "i18next";
+import { createInstance } from "i18next";
 import { initReactI18next } from "react-i18next";
 import en from "@/i18n/resources/en.json";
 import ar from "@/i18n/resources/ar.json";
 
-if (!i18n.isInitialized) {
-  void i18n.use(initReactI18next).init({
+export type AppLanguage = "en" | "ar";
+
+export function createAppI18n(language: AppLanguage) {
+  const instance = createInstance();
+  void instance.use(initReactI18next).init({
     resources: { en: { translation: en }, ar: { translation: ar } },
-    lng: "en",
+    lng: language,
     fallbackLng: "en",
     supportedLngs: ["en", "ar"],
+    initAsync: false,
     interpolation: { escapeValue: false },
     react: { useSuspense: false },
   });
+  return instance;
 }
-
-export default i18n;
-

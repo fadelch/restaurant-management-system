@@ -35,6 +35,11 @@ export const adminFoodInclude = {
   orderItems: { select: { id: true } },
 } satisfies Prisma.FoodInclude;
 
+export const adminFoodListInclude = {
+  type: true,
+  _count: { select: { orderItems: true } },
+} satisfies Prisma.FoodInclude;
+
 export const adminOrderInclude = {
   user: { select: publicUserSelect },
   items: { include: { food: true } },
