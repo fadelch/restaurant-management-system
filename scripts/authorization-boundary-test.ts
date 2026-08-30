@@ -255,6 +255,21 @@ async function main() {
       await prisma.announcement.deleteMany({ where: { id: announcementId } });
     }
     if (createdIds.length > 0) {
+      const fixtureOrders = await prisma.order.findMany({
+        where: { userId: { in: createdIds } },
+        select: { id: true },
+      });
+      const orderIds = fixtureOrders.map((order) => order.id);
+      await prisma.foodIssueReport.deleteMany({
+        where: { orderId: { in: orderIds } },
+      });
+      await prisma.stockMovement.deleteMany({
+        where: { orderId: { in: orderIds } },
+      });
+      await prisma.orderItem.deleteMany({
+        where: { orderId: { in: orderIds } },
+      });
+      await prisma.order.deleteMany({ where: { id: { in: orderIds } } });
       await prisma.user.deleteMany({ where: { id: { in: createdIds } } });
     }
     await prisma.$disconnect();

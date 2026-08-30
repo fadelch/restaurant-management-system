@@ -9,14 +9,15 @@ datasource db {
 }
 
 model User {
-  id               String   @id @default(uuid())
+  id               String    @id @default(uuid())
   name             String?
-  email            String?  @unique
+  email            String?   @unique
   password         String?
   confirm_password String?
-  isAdmin          Boolean  @default(false)
-  isBanned         Boolean  @default(false)
-  createdAt        DateTime @default(now())
+  isAdmin          Boolean   @default(false)
+  isBanned         Boolean   @default(false)
+  createdAt        DateTime  @default(now())
+  deletedAt        DateTime?
 
   orders           Order[]           @relation("UserOrders")
   favorites        Favorite[]        @relation("UserFavorites")
@@ -26,6 +27,8 @@ model User {
   foodIssueReports FoodIssueReport[] @relation("UserFoodIssueReports")
   announcements    Announcement[]    @relation("AnnouncementAuthor")
   notifications    Notification[]    @relation("UserNotifications")
+
+  @@index([deletedAt])
 }
 
 model FoodType {
@@ -59,52 +62,53 @@ model Food {
 }
 
 model Order {
-  id               String    @id @default(uuid())
-  orderNumber      String?   @unique
+  id                  String    @id @default(uuid())
+  orderNumber         String?   @unique
   checkoutRequestId   String?
   checkoutRequestHash String?
-  userId           String
-  total            Float
-  subtotal         Float     @default(0)
-  deliveryFee      Float     @default(0)
-  discountAmount   Float     @default(0)
-  status           String    @default("pending")
-  stockReturned    Boolean   @default(false)
-  customerName     String?
-  customerPhone    String?
-  fulfillmentType  String    @default("delivery")
-  paymentMethod    String?
-  paymentCode      String?
-  paymentStatus    String    @default("pending")
-  refundedAmount   Float     @default(0)
-  customerAddress  String?
-  mapLocation      String?
-  orderNotes       String?
-  estimatedReadyAt DateTime?
-  deliveryZoneId   String?
-  couponId         String?
-  couponCode       String?
-  createdAt        DateTime  @default(now())
-  adminArchivedAt  DateTime?
+  userId              String
+  total               Float
+  subtotal            Float     @default(0)
+  deliveryFee         Float     @default(0)
+  discountAmount      Float     @default(0)
+  status              String    @default("pending")
+  stockReturned       Boolean   @default(false)
+  customerName        String?
+  customerPhone       String?
+  fulfillmentType     String    @default("delivery")
+  paymentMethod       String?
+  paymentCode         String?
+  paymentStatus       String    @default("pending")
+  refundedAmount      Float     @default(0)
+  customerAddress     String?
+  mapLocation         String?
+  orderNotes          String?
+  estimatedReadyAt    DateTime?
+  deliveryZoneId      String?
+  couponId            String?
+  couponCode          String?
+  createdAt           DateTime  @default(now())
+  adminArchivedAt     DateTime?
 
-  user           User              @relation("UserOrders", fields: [userId], references: [id], onDelete: Cascade)
+  user           User              @relation("UserOrders", fields: [userId], references: [id], onDelete: Restrict)
   items          OrderItem[]       @relation("OrderItems")
   deliveryZone   DeliveryZone?     @relation(fields: [deliveryZoneId], references: [id], onDelete: SetNull)
   coupon         Coupon?           @relation(fields: [couponId], references: [id], onDelete: SetNull)
   stockMovements StockMovement[]
   issueReports   FoodIssueReport[] @relation("OrderFoodIssueReports")
 
+  @@unique([userId, checkoutRequestId])
   @@index([paymentStatus])
   @@index([adminArchivedAt])
-  @@unique([userId, checkoutRequestId])
 }
 
 model OrderItem {
   id                 Int               @id @default(autoincrement())
   orderId            String
-  order              Order             @relation("OrderItems", fields: [orderId], references: [id], onDelete: Cascade)
+  order              Order             @relation("OrderItems", fields: [orderId], references: [id], onDelete: Restrict)
   foodId             String
-  food               Food              @relation("FoodOrderItems", fields: [foodId], references: [id], onDelete: Cascade)
+  food               Food              @relation("FoodOrderItems", fields: [foodId], references: [id], onDelete: Restrict)
+  foodName           String            @default("")
   quantity           Int
   price              Float
   extraCheese        Boolean           @default(false)
@@ -128,9 +132,9 @@ model FoodIssueReport {
   updatedAt    DateTime  @updatedAt
   resolvedAt   DateTime?
 
-  order     Order     @relation("OrderFoodIssueReports", fields: [orderId], references: [id], onDelete: Cascade)
-  orderItem OrderItem @relation("OrderItemFoodIssueReports", fields: [orderItemId], references: [id], onDelete: Cascade)
-  user      User      @relation("UserFoodIssueReports", fields: [userId], references: [id], onDelete: Cascade)
+  order     Order     @relation("OrderFoodIssueReports", fields: [orderId], references: [id], onDelete: Restrict)
+  orderItem OrderItem @relation("OrderItemFoodIssueReports", fields: [orderItemId], references: [id], onDelete: Restrict)
+  user      User      @relation("UserFoodIssueReports", fields: [userId], references: [id], onDelete: Restrict)
 
   @@index([status, createdAt])
   @@index([orderId])
@@ -206,7 +210,7 @@ model Coupon {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  user     User?     @relation("CouponUser", fields: [userId], references: [id], onDelete: Cascade)
+  user     User?     @relation("CouponUser", fields: [userId], references: [id], onDelete: SetNull)
   category FoodType? @relation("CategoryCoupons", fields: [categoryId], references: [id], onDelete: Cascade)
   orders   Order[]
 
@@ -225,7 +229,7 @@ model StockMovement {
   reason      String
   createdAt   DateTime @default(now())
 
-  food  Food   @relation(fields: [foodId], references: [id], onDelete: Cascade)
+  food  Food   @relation(fields: [foodId], references: [id], onDelete: Restrict)
   admin User?  @relation("AdminStockMovements", fields: [adminId], references: [id], onDelete: SetNull)
   order Order? @relation(fields: [orderId], references: [id], onDelete: SetNull)
 

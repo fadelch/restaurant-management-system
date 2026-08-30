@@ -93,6 +93,7 @@ export async function getAdminOperations() {
       orderBy: { createdAt: "desc" },
     }),
     prisma.user.findMany({
+      where: { deletedAt: null },
       select: { id: true, name: true, email: true },
       orderBy: { name: "asc" },
     }),

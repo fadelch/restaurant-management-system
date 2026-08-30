@@ -9,6 +9,7 @@ import {
   enforceRateLimit,
   requestIpAddress,
 } from "@/lib/rateLimit";
+import { isAccountDisabled } from "@/lib/accountStatus";
 
 type LoginResult =
   | {
@@ -66,7 +67,7 @@ export async function Login_User(data: { email: string; password: string }) {
     } satisfies LoginResult;
   }
 
-  if (user.isBanned) {
+  if (isAccountDisabled(user)) {
     return {
       success: false,
       error: "Invalid email or password.",

@@ -246,7 +246,7 @@ export default function OrderTable() {
                               className="rounded-lg border border-white/10 bg-black/30 p-2"
                             >
                               <p className="font-bold text-white">
-                                {item.quantity}× {item.food?.name || "Food"}
+                                {item.quantity}× {item.foodName || "Food"}
                               </p>
                               {item.extraCheese ? (
                                 <p className="text-yellow-300">
@@ -302,7 +302,7 @@ export default function OrderTable() {
                           href={`/Admin/order/delete/${order.id}`}
                           className="inline-flex cursor-pointer rounded-xl bg-red-600 px-3 py-2 text-xs font-bold text-white shadow-lg shadow-red-950/40 transition hover:-translate-y-1 hover:bg-red-700"
                         >
-                          Delete
+                          Cancel / Archive
                         </a>
                       </td>
                     </tr>

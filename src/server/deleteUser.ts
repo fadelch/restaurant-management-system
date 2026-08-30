@@ -6,7 +6,7 @@ import {
   requireRateLimitedSuperAdmin,
 } from "@/lib/auth";
 import { idSchema, validationMessage } from "@/lib/validation";
-import { writeAuditLog } from "@/lib/audit";
+import { removeUserAccount } from "@/server/accountRemovalService";
 
 export async function deleteUser(data: {
   requesterEmail?: string;
@@ -32,33 +32,7 @@ export async function deleteUser(data: {
       throw new Error("You cannot delete the Super Admin.");
     }
 
-    const deleted = await prisma.user.delete({
-      where: {
-        id: userId,
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        isAdmin: true,
-        isBanned: true,
-        createdAt: true,
-      },
-    });
-    await writeAuditLog(actor, {
-      action: "DELETE_USER",
-      entityType: "User",
-      entityId: userId,
-      changes: {
-        deleted: {
-          name: targetUser.name,
-          email: targetUser.email,
-          isAdmin: targetUser.isAdmin,
-          isBanned: targetUser.isBanned,
-        },
-      },
-    });
-    return deleted;
+    return await removeUserAccount(userId, actor);
   } catch (err) {
     console.log("Error deleting user:", err);
     throw err;

@@ -29,13 +29,14 @@ export async function insert_order(data: { userId: string; status: string }) {
       },
     });
 
-    if (!user) {
+    if (!user || user.deletedAt) {
       throw new Error("Selected user does not exist.");
     }
 
     const order = await prisma.order.create({
       data: {
         userId,
+        customerName: user.name,
         status,
         total: 0,
         paymentMethod: "Pay on Delivery",

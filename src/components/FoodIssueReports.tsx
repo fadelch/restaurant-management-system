@@ -154,7 +154,7 @@ export default function FoodIssueReports() {
                     {report.order.orderNumber || report.order.id}
                   </p>
                   <h3 className="mt-1 text-lg font-black text-white">
-                    {report.orderItem.food.name}
+                    {report.orderItem.foodName}
                   </h3>
                   <p className="mt-1 text-sm font-bold text-orange-300">
                     {reasonLabels[report.reason] || report.reason}

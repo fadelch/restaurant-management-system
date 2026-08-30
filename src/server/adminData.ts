@@ -161,6 +161,7 @@ export async function getUsersPage(input: PageInput = {}) {
   const options = parsePageInput(input);
   const where: Prisma.UserWhereInput = {
     AND: [
+      { deletedAt: null },
       options.search
         ? {
             OR: [

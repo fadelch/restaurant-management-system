@@ -389,6 +389,7 @@ export async function checkoutForAuthenticatedUser(
               ({ item, food, unitPrice, removedIngredients, addedIngredients }) => ({
                 orderId: order.id,
                 foodId: food.id,
+                foodName: food.name,
                 quantity: item.cartQty,
                 price: unitPrice,
                 extraCheese: item.extraCheese,

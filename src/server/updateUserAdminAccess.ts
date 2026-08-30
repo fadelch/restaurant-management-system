@@ -29,6 +29,10 @@ export async function updateUserAdminAccess(data: {
       throw new Error("User not found.");
     }
 
+    if (targetUser.deletedAt) {
+      throw new Error("A removed account cannot receive admin access.");
+    }
+
     if (isSuperAdminEmail(targetUser.email)) {
       throw new Error("You cannot remove or modify the Super Admin.");
     }

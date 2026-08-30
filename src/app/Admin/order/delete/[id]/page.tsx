@@ -54,7 +54,7 @@ export default function DeleteOrderPage() {
 
       await deleteOrder(id);
 
-      showMessage("Order deleted successfully!");
+      showMessage("Order cancelled and archived. History was retained.");
       router.push("/Admin");
       router.refresh();
     } catch (err) {
@@ -71,15 +71,16 @@ export default function DeleteOrderPage() {
     <div className="min-h-screen bg-[#120000] px-6 py-10 text-white">
       <div className="mx-auto max-w-xl rounded-3xl border border-red-900/50 bg-[#1a0000] p-8 shadow-2xl">
         <p className="text-sm font-bold uppercase tracking-[0.3em] text-red-400">
-          Admin Delete
+          Admin Archive
         </p>
 
         <h1 className="mt-3 text-4xl font-black uppercase text-white">
-          Delete Order
+          Cancel and Archive Order
         </h1>
 
         <p className="mt-4 text-gray-300">
-          Are you sure you want to delete this order?
+          The order and its financial history will be retained. Active stock
+          will be returned before the order is cancelled and archived.
         </p>
 
         <div className="mt-6 rounded-2xl border border-red-900/60 bg-[#120000]/80 p-5">
@@ -123,7 +124,7 @@ export default function DeleteOrderPage() {
             disabled={loading}
             className="w-full rounded-xl bg-red-600 p-4 font-black text-white transition hover:bg-red-700 disabled:opacity-60 hover:cursor-pointer"
           >
-            {loading ? "Deleting..." : "Yes, Delete Order"}
+            {loading ? "Archiving..." : "Cancel and Archive Order"}
           </button>
 
           <button

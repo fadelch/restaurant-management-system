@@ -201,7 +201,7 @@ export default function UsersTable({
     }
 
     const confirmed = await askConfirmation(
-      `Are you sure you want to permanently delete ${user.email}? This cannot be undone.`,
+      `Remove ${user.email}? Accounts with business history will be disabled and anonymized; their orders will be retained.`,
     );
 
     if (!confirmed) {
@@ -211,7 +211,7 @@ export default function UsersTable({
     try {
       setLoadingUserId(user.id);
 
-      await deleteUser({
+      const result = await deleteUser({
         userId: user.id,
       });
 
@@ -219,7 +219,11 @@ export default function UsersTable({
         prevUsers.filter((item) => item.id !== user.id),
       );
 
-      showMessage("User deleted successfully.");
+      showMessage(
+        result.mode === "anonymized"
+          ? "Account disabled and anonymized. Order history was retained."
+          : "History-free account deleted successfully.",
+      );
       await loadUsers();
     } catch (err) {
       console.log("Error deleting user:", err);
