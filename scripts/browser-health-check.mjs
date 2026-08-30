@@ -7,6 +7,8 @@ import path from "node:path";
 const baseUrl = (process.argv[2] || "http://localhost:3100").replace(/\/$/, "");
 const sessionCookie = process.env.SMOKE_SESSION_COOKIE;
 const sessionUserEmail = process.env.SMOKE_USER_EMAIL;
+const loginEmail = process.env.SMOKE_LOGIN_EMAIL;
+const loginPassword = process.env.SMOKE_LOGIN_PASSWORD;
 const parsedExtraRoutes = JSON.parse(process.env.SMOKE_EXTRA_ROUTES || "[]");
 const extraRoutes = Array.isArray(parsedExtraRoutes)
   ? parsedExtraRoutes
@@ -246,7 +248,24 @@ try {
         new PerformanceObserver((list) => {
           const entries = list.getEntries();
           const latest = entries[entries.length - 1];
-          if (latest) window.__healthMetrics.lcp = latest.startTime;
+          if (latest) {
+            const element = latest.element;
+            window.__healthMetrics.lcp = {
+              startTime: latest.startTime,
+              renderTime: latest.renderTime,
+              loadTime: latest.loadTime,
+              size: latest.size,
+              url: latest.url || null,
+              element: element
+                ? {
+                    tagName: element.tagName,
+                    id: element.id || null,
+                    className: element.getAttribute("class"),
+                    src: element.currentSrc || element.src || null,
+                  }
+                : null,
+            };
+          }
         }).observe({ type: "largest-contentful-paint", buffered: true });
         new PerformanceObserver((list) => {
           for (const entry of list.getEntries()) {
@@ -329,12 +348,15 @@ try {
           metrics: {
             ttfb: navigation ? Math.round(navigation.responseStart) : null,
             fcp: paint ? Math.round(paint.startTime) : null,
-            lcp: window.__healthMetrics?.lcp ? Math.round(window.__healthMetrics.lcp) : null,
+            lcp: window.__healthMetrics?.lcp
+              ? Math.round(window.__healthMetrics.lcp.startTime)
+              : null,
             cls: window.__healthMetrics?.cls ?? null,
             inp: window.__healthMetrics?.inp ? Math.round(window.__healthMetrics.inp) : null,
             domContentLoaded: navigation ? Math.round(navigation.domContentLoadedEventEnd) : null,
             load: navigation ? Math.round(navigation.loadEventEnd) : null,
           },
+          lcpElement: window.__healthMetrics?.lcp || null,
           network: {
             requestCount: resources.length + 1,
             transferredBytes,
@@ -378,6 +400,7 @@ try {
       httpErrors: activeCapture.httpErrors,
       networkFailures: activeCapture.networkFailures,
       metrics: page.metrics,
+      lcpElement: page.lcpElement,
       network: page.network,
       imageResources: page.resources
         .filter(
@@ -409,44 +432,99 @@ try {
     expression: `localStorage.setItem("restaurantLanguage", "en")`,
   });
   pages.push(await visit("login", "/login"));
-  activeCapture = { console: [], httpErrors: [], networkFailures: [] };
-  const submitted = await client.send("Runtime.evaluate", {
-    expression: `(() => {
-      const setValue = (element, value) => {
-        const setter = Object.getOwnPropertyDescriptor(
-          HTMLInputElement.prototype,
-          "value",
-        ).set;
-        setter.call(element, value);
-        element.dispatchEvent(new Event("input", { bubbles: true }));
-      };
-      const email = document.querySelector('input[type="email"]');
-      const password = document.querySelector('input[type="password"]');
-      const form = document.querySelector("form");
-      if (!email || !password || !form) return false;
-      setValue(email, "codex.invalid@example.invalid");
-      setValue(password, "Invalid!Password9");
-      form.requestSubmit();
-      return true;
-    })()`,
-    returnByValue: true,
-  });
-  await sleep(2_000);
-  const invalidLoginState = await client.send("Runtime.evaluate", {
-    expression: `({
-      url: location.href,
-      rejected: document.body.innerText.includes("Invalid email or password"),
-    })`,
-    returnByValue: true,
-  });
-  pages.push({
-    label: "invalid-login",
-    submitted: submitted.result.value,
-    ...invalidLoginState.result.value,
-    console: activeCapture.console,
-    httpErrors: activeCapture.httpErrors,
-    networkFailures: activeCapture.networkFailures,
-  });
+
+  async function submitLogin(label, emailValue, passwordValue) {
+    activeCapture = { console: [], httpErrors: [], networkFailures: [] };
+    const submitted = await client.send("Runtime.evaluate", {
+      expression: `(() => {
+        const setValue = (element, value) => {
+          const setter = Object.getOwnPropertyDescriptor(
+            HTMLInputElement.prototype,
+            "value",
+          ).set;
+          setter.call(element, value);
+          element.dispatchEvent(new Event("input", { bubbles: true }));
+        };
+        const email = document.querySelector('input[type="email"]');
+        const password = document.querySelector('input[type="password"]');
+        const form = document.querySelector("form");
+        if (!email || !password || !form) return false;
+        setValue(email, ${JSON.stringify(emailValue)});
+        setValue(password, ${JSON.stringify(passwordValue)});
+        form.requestSubmit();
+        return true;
+      })()`,
+      returnByValue: true,
+    });
+    await sleep(3_000);
+    const state = await client.send("Runtime.evaluate", {
+      expression: `({
+        url: location.href,
+        rejected: document.body.innerText.includes("Invalid email or password"),
+      })`,
+      returnByValue: true,
+    });
+    return {
+      label,
+      submitted: submitted.result.value,
+      ...state.result.value,
+      console: activeCapture.console,
+      httpErrors: activeCapture.httpErrors,
+      networkFailures: activeCapture.networkFailures,
+    };
+  }
+
+  if (loginEmail && loginPassword) {
+    pages.push(await submitLogin("valid-login", loginEmail, loginPassword));
+    pages.push(await visit("admin-authenticated-refresh", "/Admin"));
+
+    activeCapture = { console: [], httpErrors: [], networkFailures: [] };
+    const logout = await client.send("Runtime.evaluate", {
+      expression: `(() => {
+        const button = Array.from(document.querySelectorAll("button")).find(
+          (item) => {
+            const label = item.textContent?.trim().toLowerCase();
+            return label === "logout" || label === "تسجيل الخروج";
+          },
+        );
+        if (!button) return false;
+        button.click();
+        return true;
+      })()`,
+      returnByValue: true,
+    });
+    for (let attempt = 0; attempt < 24; attempt += 1) {
+      const location = await client.send("Runtime.evaluate", {
+        expression: "location.pathname",
+        returnByValue: true,
+      });
+      if (location.result.value !== "/Admin") break;
+      await sleep(250);
+    }
+    const logoutState = await client.send("Runtime.evaluate", {
+      expression: `({ url: location.href })`,
+      returnByValue: true,
+    });
+    pages.push({
+      label: "logout",
+      clicked: logout.result.value,
+      ...logoutState.result.value,
+      console: activeCapture.console,
+      httpErrors: activeCapture.httpErrors,
+      networkFailures: activeCapture.networkFailures,
+    });
+
+    pages.push(await visit("login-again", "/login"));
+    pages.push(await submitLogin("valid-login-again", loginEmail, loginPassword));
+  } else {
+    pages.push(
+      await submitLogin(
+        "invalid-login",
+        "codex.invalid@example.invalid",
+        "Invalid!Password9",
+      ),
+    );
+  }
   pages.push(await visit("signup", "/signup"));
   pages.push(await visit("admin-unauthenticated", "/Admin"));
   pages.push(await visit("cart-unauthenticated", "/cart"));

@@ -13,12 +13,14 @@ export async function deleteFood(id: string) {
     if (!parsed.success) throw new Error(validationMessage(parsed.error));
     const food = await prisma.food.findUnique({
       where: { id: parsed.data },
-      include: { _count: { select: { orderItems: true } } },
+      include: {
+        _count: { select: { orderItems: true, stockMovements: true } },
+      },
     });
     if (!food) throw new Error("Food not found.");
-    if (food._count.orderItems > 0) {
+    if (food._count.orderItems > 0 || food._count.stockMovements > 0) {
       throw new Error(
-        "This food is part of order history and cannot be deleted. Set its stock to zero instead.",
+        "This food is part of order or inventory history and cannot be deleted. Set its stock to zero instead.",
       );
     }
     const deleted = await prisma.food.delete({

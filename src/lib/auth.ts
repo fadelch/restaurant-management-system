@@ -9,6 +9,7 @@ import {
   assertAdminAccess,
   assertSuperAdminAccess,
 } from "@/lib/authorization";
+import { isAccountDisabled } from "@/lib/accountStatus";
 
 const SESSION_COOKIE = "restaurant_session";
 const SESSION_DURATION_SECONDS = 60 * 60 * 24 * 7;
@@ -111,9 +112,10 @@ export async function getCurrentUser() {
       isAdmin: true,
       isBanned: true,
       createdAt: true,
+      deletedAt: true,
     },
   });
-  if (!user || user.isBanned) return null;
+  if (!user || isAccountDisabled(user)) return null;
 
   const isSuperAdmin = isSuperAdminEmail(user.email);
   return {

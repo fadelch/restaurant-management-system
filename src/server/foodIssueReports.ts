@@ -197,7 +197,7 @@ export async function reviewFoodIssueReport(
               refundAmount: report.refundAmount,
             },
             after: { status: data.status, refundAmount },
-            food: report.orderItem.food.name,
+            food: report.orderItem.foodName,
             reason: report.reason,
           },
         },

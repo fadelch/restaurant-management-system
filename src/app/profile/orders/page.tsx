@@ -169,7 +169,7 @@ export default function CustomerOrdersPage() {
                           >
                             <div>
                               <p className="font-bold">
-                                {item.food?.name || "Food item"}
+                                {item.foodName || "Food item"}
                               </p>
                               <p className="text-sm text-gray-400">
                                 {item.quantity} ×{" "}
@@ -209,7 +209,7 @@ export default function CustomerOrdersPage() {
                                 <FoodIssueReportPanel
                                   orderId={order.id}
                                   orderItemId={item.id}
-                                  foodName={item.food?.name || "Food item"}
+                                  foodName={item.foodName || "Food item"}
                                   maxQuantity={item.quantity}
                                   initialReports={item.issueReports || []}
                                 />

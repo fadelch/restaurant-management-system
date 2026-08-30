@@ -1,32 +1,26 @@
 "use server";
 
 import prisma from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
+import { getCurrentUser, requireUser } from "@/lib/auth";
 import { idSchema, validationMessage } from "@/lib/validation";
 
-async function findUserByEmail(userEmail: string) {
-  void userEmail;
-  return requireUser();
-}
-
-export async function getFavoriteFoodIds(userEmail: string) {
-  const user = await findUserByEmail(userEmail);
-  if (!user) return [];
+export async function getFavoriteState() {
+  const user = await getCurrentUser();
+  if (!user) return { authenticated: false, foodIds: [] as string[] };
 
   const favorites = await prisma.favorite.findMany({
     where: { userId: user.id },
     select: { foodId: true },
   });
 
-  return favorites.map((favorite) => favorite.foodId);
+  return {
+    authenticated: true,
+    foodIds: favorites.map((favorite) => favorite.foodId),
+  };
 }
 
-export async function toggleFavorite(userEmail: string, foodId: string) {
-  const user = await findUserByEmail(userEmail);
-
-  if (!user) {
-    throw new Error("Please log in to save favorite foods.");
-  }
+export async function toggleFavorite(foodId: string) {
+  const user = await requireUser();
 
   const parsed = idSchema.safeParse(foodId);
   if (!parsed.success) throw new Error(validationMessage(parsed.error));

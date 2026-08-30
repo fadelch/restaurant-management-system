@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import "./globals.css";
 import AppProviders from "@/components/providers/AppProviders";
 
@@ -14,10 +14,16 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   await headers();
+  const languageCookie = (await cookies()).get("restaurantLanguage")?.value;
+  const language = languageCookie === "ar" ? "ar" : "en";
   return (
-    <html lang="en" dir="ltr" data-scroll-behavior="smooth">
+    <html
+      lang={language}
+      dir={language === "ar" ? "rtl" : "ltr"}
+      data-scroll-behavior="smooth"
+    >
       <body>
-        <AppProviders>{children}</AppProviders>
+        <AppProviders initialLanguage={language}>{children}</AppProviders>
       </body>
     </html>
   );

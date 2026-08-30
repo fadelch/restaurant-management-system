@@ -267,7 +267,7 @@ export default function OrderItemsTable() {
                       </td>
 
                       <td className="px-5 py-4 font-bold text-white">
-                        {item.food?.name || "Unknown food"}
+                        {item.foodName || "Unknown food"}
                       </td>
 
                       <td className="px-5 py-4 text-xs text-gray-300">

@@ -28,8 +28,17 @@ export async function deleteOrder(id: string) {
         include: { items: true },
       });
       if (!order) throw new Error("Order not found.");
+      const normalizedStatus = normalizeStatus(order.status);
+      if (
+        ["done", "completed"].includes(normalizedStatus) ||
+        ["done", "refunded"].includes(order.paymentStatus.toLowerCase())
+      ) {
+        throw new Error(
+          "Completed, paid, or refunded orders cannot be removed. Archive them from the finished-orders view.",
+        );
+      }
       const shouldReturnQty =
-        normalizeStatus(order.status) !== "cancelled" && !order.stockReturned;
+        normalizedStatus !== "cancelled" && !order.stockReturned;
       if (shouldReturnQty) {
         const quantities = new Map<string, number>();
         order.items.forEach((item) => {
@@ -55,27 +64,48 @@ export async function deleteOrder(id: string) {
               change: quantity,
               previousQty: food.qty,
               newQty: food.qty + quantity,
-              reason: "Order deleted - stock restored",
+              reason: "Order cancelled and archived - stock restored",
             },
           });
         }
       }
-      const deleted = await tx.order.delete({ where: { id: validId } });
+      const archived = await tx.order.update({
+        where: { id: validId },
+        data: {
+          status: "cancelled",
+          stockReturned: true,
+          paymentStatus:
+            order.paymentStatus === "pending"
+              ? "cancelled"
+              : order.paymentStatus,
+          adminArchivedAt: new Date(),
+        },
+      });
       await writeAuditLog(
         actor,
         {
-          action: "DELETE_ORDER",
+          action: "CANCEL_AND_ARCHIVE_ORDER",
           entityType: "Order",
           entityId: validId,
           changes: {
             orderNumber: order.orderNumber,
-            status: order.status,
+            before: {
+              status: order.status,
+              paymentStatus: order.paymentStatus,
+              stockReturned: order.stockReturned,
+            },
+            after: {
+              status: archived.status,
+              paymentStatus: archived.paymentStatus,
+              stockReturned: archived.stockReturned,
+              adminArchivedAt: archived.adminArchivedAt,
+            },
             total: order.total,
           },
         },
         tx,
       );
-      return deleted;
+      return archived;
     },
     { isolationLevel: "Serializable" },
   );

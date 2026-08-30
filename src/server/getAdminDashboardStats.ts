@@ -37,6 +37,7 @@ export async function getAdminDashboardStats() {
           items: {
             select: {
               quantity: true,
+              foodName: true,
               food: {
                 select: {
                   id: true,
@@ -53,7 +54,7 @@ export async function getAdminDashboardStats() {
           },
         },
       }),
-      prisma.user.count({ where: { isAdmin: false } }),
+      prisma.user.count({ where: { isAdmin: false, deletedAt: null } }),
       prisma.food.findMany({
         where: { qty: { lte: prisma.food.fields.minStock } },
         select: { id: true, name: true, qty: true, minStock: true },
@@ -123,7 +124,7 @@ export async function getAdminDashboardStats() {
       const food = foodSales.get(item.food.id);
       foodSales.set(item.food.id, {
         id: item.food.id,
-        name: item.food.name,
+        name: item.foodName,
         quantity: (food?.quantity || 0) + item.quantity,
       });
 

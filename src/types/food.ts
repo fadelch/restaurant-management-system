@@ -1,7 +1,10 @@
 import type { Prisma } from "@/generated/prisma";
 import type { z } from "zod";
 import type { foodSchema } from "@/lib/validation";
-import type { publicMenuFoodSelect } from "@/lib/prismaSelects";
+import type {
+  adminFoodListInclude,
+  publicMenuFoodSelect,
+} from "@/lib/prismaSelects";
 
 export type OptionalIngredient = { name: string; price: number };
 
@@ -17,10 +20,7 @@ export type FoodItem = MenuFoodRecord & {
 };
 
 export type AdminFoodItem = Prisma.FoodGetPayload<{
-  include: {
-    type: true;
-    orderItems: { select: { id: true } };
-  };
+  include: typeof adminFoodListInclude;
 }>;
 
 export type FoodInput = z.input<typeof foodSchema>;

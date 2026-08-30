@@ -140,7 +140,7 @@ export default function FoodTypeTable() {
 
                     <td className="px-5 py-5">
                       <span className="rounded-lg border border-white/10 bg-white/5 px-3 py-1 font-bold">
-                        {type.foods?.length || 0}
+                        {type._count.foods}
                       </span>
                     </td>
 

@@ -9,7 +9,7 @@ import {
   idSchema,
   validationMessage,
 } from "@/lib/validation";
-import { adminFoodInclude, adminOrderInclude } from "@/lib/prismaSelects";
+import { adminFoodListInclude, adminOrderInclude } from "@/lib/prismaSelects";
 import {
   paginatedResult,
   paginationArgs,
@@ -161,6 +161,7 @@ export async function getUsersPage(input: PageInput = {}) {
   const options = parsePageInput(input);
   const where: Prisma.UserWhereInput = {
     AND: [
+      { deletedAt: null },
       options.search
         ? {
             OR: [
@@ -263,7 +264,7 @@ export async function getFoodsPage(input: PageInput = {}) {
   const [items, total] = await Promise.all([
     prisma.food.findMany({
       where,
-      include: adminFoodInclude,
+      include: adminFoodListInclude,
       orderBy,
       ...paginationArgs(options),
     }),
@@ -290,7 +291,7 @@ export async function getFoodTypesPage(input: PageInput = {}) {
   const [items, total] = await Promise.all([
     prisma.foodType.findMany({
       where,
-      include: { foods: { select: { id: true } } },
+      include: { _count: { select: { foods: true } } },
       orderBy,
       ...paginationArgs(options),
     }),

@@ -50,14 +50,61 @@ async function run() {
   const runId = randomUUID().slice(0, 8);
   const prefix = `codex-checkout-${runId}`;
   const emailPrefix = `${prefix}-`;
-  let foodTypeId: string | null = null;
   const users: TestUser[] = [];
   const results: Record<string, unknown> = {};
   const runtime = {
     restaurantStatus: async () => ({ isOpen: true, message: "Open" }),
   };
 
+  async function cleanupFixtures(prefixToClean: string) {
+    const fixtureUsers = await prisma.user.findMany({
+      where: { email: { startsWith: `${prefixToClean}` } },
+      select: { id: true },
+    });
+    const fixtureTypes = await prisma.foodType.findMany({
+      where: { name: { startsWith: prefixToClean } },
+      select: { id: true },
+    });
+    const userIds = fixtureUsers.map((user) => user.id);
+    const typeIds = fixtureTypes.map((type) => type.id);
+    const fixtureFoods = await prisma.food.findMany({
+      where: { typeId: { in: typeIds } },
+      select: { id: true },
+    });
+    const foodIds = fixtureFoods.map((food) => food.id);
+    const fixtureOrders = await prisma.order.findMany({
+      where: { userId: { in: userIds } },
+      select: { id: true },
+    });
+    const orderIds = fixtureOrders.map((order) => order.id);
+
+    await prisma.foodIssueReport.deleteMany({
+      where: { orderId: { in: orderIds } },
+    });
+    await prisma.stockMovement.deleteMany({
+      where: {
+        OR: [
+          { orderId: { in: orderIds } },
+          { foodId: { in: foodIds } },
+        ],
+      },
+    });
+    await prisma.orderItem.deleteMany({
+      where: { orderId: { in: orderIds } },
+    });
+    await prisma.order.deleteMany({ where: { id: { in: orderIds } } });
+    await prisma.favorite.deleteMany({
+      where: {
+        OR: [{ userId: { in: userIds } }, { foodId: { in: foodIds } }],
+      },
+    });
+    await prisma.food.deleteMany({ where: { id: { in: foodIds } } });
+    await prisma.foodType.deleteMany({ where: { id: { in: typeIds } } });
+    await prisma.user.deleteMany({ where: { id: { in: userIds } } });
+  }
+
   try {
+    await cleanupFixtures("codex-checkout-");
     const passwordHash = await hash(randomUUID(), 12);
     await prisma.user.createMany({
       data: Array.from({ length: 20 }, (_, index) => ({
@@ -79,7 +126,6 @@ async function run() {
     const foodType = await prisma.foodType.create({
       data: { name: `${prefix}-type` },
     });
-    foodTypeId = foodType.id;
     const foodDefinitions = [
       ...Array.from({ length: 20 }, (_, index) => ({
         name: `${prefix}-different-${index}`,
@@ -383,12 +429,7 @@ async function run() {
 
     console.log(JSON.stringify({ status: "PASS", results }, null, 2));
   } finally {
-    if (foodTypeId) {
-      await prisma.foodType.deleteMany({ where: { id: foodTypeId } });
-    }
-    await prisma.user.deleteMany({
-      where: { email: { startsWith: emailPrefix } },
-    });
+    await cleanupFixtures(prefix);
     await prisma.$disconnect();
   }
 }

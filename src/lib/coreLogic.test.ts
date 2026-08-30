@@ -27,6 +27,7 @@ import {
   assertAdminAccess,
   assertSuperAdminAccess,
 } from "@/lib/authorization";
+import { isAccountDisabled } from "@/lib/accountStatus";
 
 describe("security-sensitive input validation", () => {
   it("accepts a strong password and rejects weak passwords", () => {
@@ -184,5 +185,20 @@ describe("role authorization", () => {
     assert.doesNotThrow(() => assertAdminAccess(admin));
     assert.throws(() => assertSuperAdminAccess(admin), /Super Admin access/);
     assert.doesNotThrow(() => assertSuperAdminAccess(superAdmin));
+  });
+
+  it("treats removed and banned accounts as disabled", () => {
+    assert.equal(
+      isAccountDisabled({ isBanned: false, deletedAt: null }),
+      false,
+    );
+    assert.equal(
+      isAccountDisabled({ isBanned: true, deletedAt: null }),
+      true,
+    );
+    assert.equal(
+      isAccountDisabled({ isBanned: false, deletedAt: new Date() }),
+      true,
+    );
   });
 });

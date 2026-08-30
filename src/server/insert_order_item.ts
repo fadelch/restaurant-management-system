@@ -51,6 +51,7 @@ export async function insert_order_item(data: {
         data: {
           orderId,
           foodId,
+          foodName: food.name,
           quantity,
           price,
         },

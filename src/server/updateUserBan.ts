@@ -29,6 +29,10 @@ export async function updateUserBan(data: {
       throw new Error("User not found.");
     }
 
+    if (targetUser.deletedAt) {
+      throw new Error("A removed account cannot be reactivated.");
+    }
+
     if (isSuperAdminEmail(targetUser.email)) {
       throw new Error("You cannot ban the Super Admin.");
     }

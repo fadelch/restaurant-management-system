@@ -125,7 +125,7 @@ export default function OrderConfirmationPage() {
                   >
                     <div>
                       <p className="font-bold">
-                        {item.food?.name || "Food item"}
+                        {item.foodName || "Food item"}
                       </p>
                       <p className="text-sm text-gray-400">
                         Quantity: {item.quantity}
