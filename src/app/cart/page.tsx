@@ -6,10 +6,12 @@ import { useRouter } from "next/navigation";
 import Nav_bar from "@/components/nav_bar";
 import CartCheckoutDialog from "@/components/CartCheckoutDialog";
 import { useCart } from "@/context/CartContext";
-import { formatUsdWithLbp } from "@/lib/currency";
+import { useCurrency } from "@/components/providers/CurrencyProvider";
 import { normalizeOptionalIngredients } from "@/lib/foodOptions";
+import { multiplyUsd } from "@/lib/currency";
 
 export default function CartPage() {
+  const { formatUsdWithLbp } = useCurrency();
   const router = useRouter();
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const {
@@ -71,7 +73,7 @@ export default function CartPage() {
                   item.optionalIngredients,
                 );
                 const lineTotal = formatUsdWithLbp(
-                  item.unitPrice * item.cartQty,
+                  multiplyUsd(item.unitPrice, item.cartQty),
                 );
                 const hasCustomization =
                   item.customization.extraCheese ||

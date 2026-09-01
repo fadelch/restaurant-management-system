@@ -1,12 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { showMessage } from "@/components/MessageProvider";
 import {
   getAdminOperations,
   saveCoupon,
   saveDeliveryZone,
   saveRestaurantHours,
+  saveUsdToLbpRate,
 } from "@/server/adminOperations";
 
 type Data = Awaited<ReturnType<typeof getAdminOperations>>;
@@ -31,11 +33,13 @@ const days = [
 ];
 
 export default function RestaurantOperationsManager() {
+  const router = useRouter();
   const [data, setData] = useState<Data | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [hoursDraft, setHoursDraft] = useState<HoursDraft>([]);
+  const [usdToLbpRate, setUsdToLbpRate] = useState("");
   const [zone, setZone] = useState({
     name: "",
     description: "",
@@ -62,6 +66,12 @@ export default function RestaurantOperationsManager() {
     try {
       const next = await getAdminOperations();
       setData(next);
+      setUsdToLbpRate(
+        next.currencySettings?.usdToLbpRate === null ||
+          next.currencySettings?.usdToLbpRate === undefined
+          ? ""
+          : String(next.currencySettings.usdToLbpRate),
+      );
       setHoursDraft(
         next.hours.map(({ dayOfWeek, openTime, closeTime, isClosed }) => ({
           dayOfWeek,
@@ -87,6 +97,7 @@ export default function RestaurantOperationsManager() {
       await work();
       showMessage(success);
       await load();
+      router.refresh();
     } catch (err) {
       showMessage(
         err instanceof Error ? err.message : "The change could not be saved.",
@@ -115,6 +126,48 @@ export default function RestaurantOperationsManager() {
   if (!data) return null;
   return (
     <div className="space-y-8">
+      <section className="rounded-2xl border border-white/10 bg-[#160000] p-5">
+        <h2 className="text-2xl font-black">Currency conversion</h2>
+        <p className="mt-1 text-sm text-gray-400">
+          Set the restaurant&apos;s USD to LBP display rate. Checkout snapshots
+          this server-side value on each new order, so historical orders keep
+          the rate used when they were placed.
+        </p>
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            run(
+              () => saveUsdToLbpRate({ usdToLbpRate }),
+              "USD/LBP exchange rate saved.",
+            );
+          }}
+          className="mt-5 flex max-w-2xl flex-col gap-3 sm:flex-row sm:items-end"
+        >
+          <label className="flex-1 text-sm font-bold text-gray-300">
+            LBP for 1 USD
+            <input
+              required
+              type="number"
+              min="0.0001"
+              max="10000000"
+              step="0.0001"
+              inputMode="decimal"
+              value={usdToLbpRate}
+              onChange={(event) => setUsdToLbpRate(event.target.value)}
+              placeholder="Enter the owner-approved rate"
+              className={`${input} mt-2`}
+            />
+          </label>
+          <button disabled={saving || !usdToLbpRate} className={button}>
+            {saving ? "Saving..." : "Save exchange rate"}
+          </button>
+        </form>
+        <p className="mt-3 text-xs text-gray-400">
+          {data.currencySettings?.updatedAt
+            ? `Last updated ${new Date(data.currencySettings.updatedAt).toLocaleString()}`
+            : "No exchange rate is configured. LBP values remain unavailable until an authorized admin saves one."}
+        </p>
+      </section>
       <section className="rounded-2xl border border-white/10 bg-[#160000] p-5">
         <h2 className="text-2xl font-black">Delivery zones</h2>
         <p className="mt-1 text-sm text-gray-400">
@@ -411,7 +464,7 @@ export default function RestaurantOperationsManager() {
             required
             type="number"
             min="0.01"
-            step="0.01"
+            step={coupon.discountType === "percentage" ? "0.0001" : "0.01"}
             value={coupon.value}
             onChange={(e) =>
               setCoupon({ ...coupon, value: Number(e.target.value) })

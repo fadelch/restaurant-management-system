@@ -5,6 +5,7 @@ import { requireRateLimitedAdmin } from "@/lib/auth";
 import { foodSchema, idSchema, validationMessage } from "@/lib/validation";
 import { writeAuditLog } from "@/lib/audit";
 import { deleteUploadedFoodImage } from "@/lib/uploads";
+import { serializeForClient } from "@/lib/serialize";
 
 export async function updateFood(data: {
   id: string;
@@ -105,7 +106,7 @@ export async function updateFood(data: {
     if (result.previousImage && result.previousImage !== image) {
       await deleteUploadedFoodImage(result.previousImage);
     }
-    return result.food;
+    return serializeForClient(result.food);
   } catch (err) {
     console.log("Error updating food:", err);
     throw err;

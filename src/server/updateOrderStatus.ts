@@ -9,6 +9,7 @@ import {
 } from "@/lib/validation";
 import { writeAuditLog } from "@/lib/audit";
 import { adminOrderInclude } from "@/lib/prismaSelects";
+import { serializeForClient } from "@/lib/serialize";
 
 function normalizeStatus(status: string) {
   const value = status.trim().toLowerCase();
@@ -34,7 +35,7 @@ export async function updateOrderStatus(data: { id: string; status: string }) {
   if (!statusResult.success)
     throw new Error(validationMessage(statusResult.error));
 
-  return prisma.$transaction(
+  const order = await prisma.$transaction(
     async (tx) => {
       const existingOrder = await tx.order.findUnique({
         where: { id },
@@ -165,4 +166,5 @@ export async function updateOrderStatus(data: { id: string; status: string }) {
     },
     { isolationLevel: "Serializable" },
   );
+  return serializeForClient(order);
 }

@@ -13,6 +13,7 @@ const SECRET_ENVIRONMENT_KEYS = [
   "UPSTASH_REDIS_REST_TOKEN",
   "BLOB_READ_WRITE_TOKEN",
   "SENTRY_AUTH_TOKEN",
+  "RESEND_API_KEY",
 ] as const;
 const SENSITIVE_FIELD =
   /password|passphrase|authorization|cookie|token|secret|database[_-]?url|payment/i;

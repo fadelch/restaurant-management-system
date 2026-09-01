@@ -57,7 +57,7 @@ export async function removeUserAccount(userId: string, actor: Actor) {
             name: null,
             email: null,
             password: null,
-            confirm_password: null,
+            sessionVersion: { increment: 1 },
             isAdmin: false,
             isBanned: true,
             deletedAt,

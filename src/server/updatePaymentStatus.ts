@@ -9,6 +9,8 @@ import {
   paymentStatusSchema,
   validationMessage,
 } from "@/lib/validation";
+import { roundUsd } from "@/lib/money";
+import { serializeForClient } from "@/lib/serialize";
 
 const updatePaymentSchema = z.object({
   id: idSchema,
@@ -22,14 +24,21 @@ export async function updatePaymentStatus(
   const parsed = updatePaymentSchema.safeParse(input);
   if (!parsed.success) throw new Error(validationMessage(parsed.error));
 
-  return prisma.$transaction(async (tx) => {
+  const updatedOrder = await prisma.$transaction(async (tx) => {
+    const lockedOrder = await tx.$queryRaw<Array<{ id: string }>>`
+      SELECT "id"
+      FROM "public"."Order"
+      WHERE "id" = ${parsed.data.id}
+      FOR UPDATE
+    `;
+    if (!lockedOrder.length) throw new Error("Order not found.");
     const existingOrder = await tx.order.findUnique({
       where: { id: parsed.data.id },
     });
     if (!existingOrder) throw new Error("Order not found.");
     const refundedAmount =
       parsed.data.paymentStatus === "refunded"
-        ? existingOrder.refundedAmount || existingOrder.total
+        ? roundUsd(existingOrder.total)
         : existingOrder.refundedAmount;
     const updated = await tx.order.update({
       where: { id: existingOrder.id },
@@ -56,4 +65,5 @@ export async function updatePaymentStatus(
     );
     return updated;
   });
+  return serializeForClient(updatedOrder);
 }

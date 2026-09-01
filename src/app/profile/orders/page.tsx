@@ -5,12 +5,13 @@ import { useRouter } from "next/navigation";
 import Nav_bar from "@/components/nav_bar";
 import { showMessage } from "@/components/MessageProvider";
 import { useCart } from "@/context/CartContext";
-import { formatUsdWithLbp } from "@/lib/currency";
+import { useCurrency } from "@/components/providers/CurrencyProvider";
 import { getCustomerOrders } from "@/server/getCustomerOrders";
 import type { CustomerOrder } from "@/types";
 import { normalizeOptionalIngredients } from "@/lib/foodOptions";
 import { getCurrentSession } from "@/server/authActions";
 import FoodIssueReportPanel from "@/components/FoodIssueReportPanel";
+import { multiplyUsd } from "@/lib/currency";
 
 function statusClass(status: string) {
   const value = status.toLowerCase();
@@ -32,6 +33,7 @@ function paymentStatusClass(status: string) {
 
 export default function CustomerOrdersPage() {
   const router = useRouter();
+  const { formatUsdWithLbp } = useCurrency();
   const { reorderItems } = useCart();
   const [orders, setOrders] = useState<CustomerOrder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -122,7 +124,10 @@ export default function CustomerOrdersPage() {
         ) : (
           <div className="space-y-6">
             {orders.map((order) => {
-              const total = formatUsdWithLbp(order.total);
+              const total = formatUsdWithLbp(
+                order.total,
+                order.exchangeRateUsed,
+              );
 
               return (
                 <article
@@ -173,7 +178,7 @@ export default function CustomerOrdersPage() {
                               </p>
                               <p className="text-sm text-gray-400">
                                 {item.quantity} ×{" "}
-                                {formatUsdWithLbp(item.price).usd}
+                                {formatUsdWithLbp(item.price, order.exchangeRateUsed).usd}
                               </p>
                               {item.extraCheese ? (
                                 <p className="mt-1 text-xs font-bold text-yellow-300">
@@ -216,7 +221,7 @@ export default function CustomerOrdersPage() {
                               ) : null}
                             </div>
                             <p className="font-black text-green-300">
-                              {formatUsdWithLbp(item.price * item.quantity).usd}
+                              {formatUsdWithLbp(multiplyUsd(item.price, item.quantity), order.exchangeRateUsed).usd}
                             </p>
                           </div>
                         ))}
@@ -250,7 +255,7 @@ export default function CustomerOrdersPage() {
                         </p>
                         {(order.refundedAmount || 0) > 0 ? (
                           <p className="mt-1 text-sm font-bold text-violet-300">
-                            Refunded: {formatUsdWithLbp(order.refundedAmount || 0).usd}
+                            Refunded: {formatUsdWithLbp(order.refundedAmount || 0, order.exchangeRateUsed).usd}
                           </p>
                         ) : null}
                       </div>

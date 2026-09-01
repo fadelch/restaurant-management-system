@@ -5,10 +5,11 @@ import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import { getAdminFoodById } from "@/server/getFoodById";
 import { deleteFood } from "@/server/deleteFood";
-import { formatUsdWithLbp } from "@/lib/currency";
+import { useCurrency } from "@/components/providers/CurrencyProvider";
 import { showMessage } from "@/components/MessageProvider";
 
 export default function DeleteFoodPage() {
+  const { formatUsdWithLbp } = useCurrency();
   const router = useRouter();
   const params = useParams<{ id: string }>();
 

@@ -1,4 +1,13 @@
 import { z } from "zod";
+import { hasAtMostDecimalPlaces } from "@/lib/moneyInput";
+
+export const usdAmountSchema = z
+  .number()
+  .finite()
+  .refine(
+    (value) => hasAtMostDecimalPlaces(value, 2),
+    "USD amounts may contain at most two decimal places.",
+  );
 
 export const idSchema = z.string().trim().uuid("A valid ID is required.");
 export const emailSchema = z
@@ -28,17 +37,18 @@ export const foodSchema = z.object({
     .array(
       z.object({
         name: z.string().trim().min(1).max(50),
-        price: z.number().min(0).max(1_000),
+        price: usdAmountSchema.min(0).max(1_000),
       }),
     )
     .max(30)
     .default([]),
-  extraCheesePrice: z
-    .number()
+  extraCheesePrice: usdAmountSchema
     .min(0, "Extra-cheese price cannot be negative.")
     .max(1_000)
     .default(1.5),
-  price: z.number().positive("Price must be greater than 0.").max(100_000),
+  price: usdAmountSchema
+    .positive("Price must be greater than 0.")
+    .max(100_000),
   qty: z.number().int().min(0, "Quantity cannot be negative.").max(1_000_000),
   minStock: z.number().int().min(0).max(1_000_000).default(5),
   image: z.string().trim().max(500).nullable().optional(),

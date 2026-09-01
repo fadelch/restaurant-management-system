@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { showMessage } from "@/components/MessageProvider";
-import { formatUsdWithLbp } from "@/lib/currency";
+import { useCurrency } from "@/components/providers/CurrencyProvider";
 import { getFoodTypes } from "@/server/getFoodTypes";
 import { insert_food } from "@/server/insert_food";
 import type { FoodTypeSummary } from "@/types";
@@ -12,6 +12,7 @@ import FoodIngredientsEditor from "@/components/FoodIngredientsEditor";
 import type { OptionalIngredient } from "@/lib/foodOptions";
 
 export default function Page() {
+  const { formatUsdWithLbp } = useCurrency();
   const router = useRouter();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");

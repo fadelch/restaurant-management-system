@@ -1,4 +1,5 @@
 import type { OptionalIngredient } from "@/types/food";
+import { hasAtMostDecimalPlaces } from "@/lib/moneyInput";
 
 export type { OptionalIngredient } from "@/types/food";
 
@@ -12,7 +13,13 @@ export function normalizeOptionalIngredients(
     const name = typeof record.name === "string" ? record.name.trim() : "";
     const price =
       typeof record.price === "number" ? record.price : Number(record.price);
-    if (!name || !Number.isFinite(price) || price < 0) return [];
+    if (
+      !name ||
+      !Number.isFinite(price) ||
+      price < 0 ||
+      !hasAtMostDecimalPlaces(price, 2)
+    )
+      return [];
     return [{ name, price }];
   });
 }
@@ -33,9 +40,14 @@ export function parseOptionalIngredientsText(
       throw new Error("Write each optional ingredient as Name:Price.");
     const name = part.slice(0, separator).trim();
     const price = Number(part.slice(separator + 1).trim());
-    if (!name || !Number.isFinite(price) || price < 0) {
+    if (
+      !name ||
+      !Number.isFinite(price) ||
+      price < 0 ||
+      !hasAtMostDecimalPlaces(price, 2)
+    ) {
       throw new Error(
-        "Every optional ingredient needs a valid name and non-negative price.",
+        "Every optional ingredient needs a valid name and non-negative price with at most two decimal places.",
       );
     }
     return { name, price };

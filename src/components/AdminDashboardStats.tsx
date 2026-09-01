@@ -1,6 +1,6 @@
 "use client";
 
-import { formatUsdWithLbp } from "@/lib/currency";
+import { useCurrency } from "@/components/providers/CurrencyProvider";
 import type { getAdminDashboardStats } from "@/server/getAdminDashboardStats";
 
 export type AdminDashboardData = Awaited<
@@ -14,6 +14,7 @@ function VerticalBarChart({
   data: { key: string; label: string; value: number }[];
   currency?: boolean;
 }) {
+  const { formatUsdWithLbp } = useCurrency();
   const max = Math.max(...data.map((item) => item.value), 1);
 
   return (
@@ -81,6 +82,7 @@ export default function AdminDashboardStats({
 }: {
   data: AdminDashboardData;
 }) {
+  const { formatUsdWithLbp } = useCurrency();
   const bestSeller = data.bestSellingFoods[0];
   const cards = [
     {

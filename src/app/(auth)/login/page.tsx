@@ -201,6 +201,14 @@ export default function Page() {
                   {showPassword ? "🙈" : "👁️"}
                 </button>
               </div>
+              <div className="text-right">
+                <Link
+                  href="/forgot-password"
+                  className="text-sm font-bold text-red-300 hover:underline"
+                >
+                  Forgot password?
+                </Link>
+              </div>
             </div>
 
             <button

@@ -83,7 +83,7 @@ export async function Login_User(data: { email: string; password: string }) {
     } satisfies LoginResult;
   }
 
-  await setAuthSession(user.id);
+  await setAuthSession(user.id, user.sessionVersion);
 
   const isSuperAdmin = isSuperAdminEmail(user.email);
   const isAdmin = user.isAdmin || isSuperAdmin;

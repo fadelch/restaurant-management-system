@@ -1,18 +1,20 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import type { FoodItem } from "@/types";
 import { useCart } from "@/context/CartContext";
-import { formatUsdWithLbp } from "@/lib/currency";
+import { useCurrency } from "@/components/providers/CurrencyProvider";
 import { showMessage } from "@/components/MessageProvider";
+import { addUsdAmounts } from "@/lib/currency";
 import {
   normalizeOptionalIngredients,
   type OptionalIngredient,
 } from "@/lib/foodOptions";
 
 export default function FoodCustomizer({ food }: { food: FoodItem }) {
+  const { formatUsdWithLbp } = useCurrency();
   const router = useRouter();
   const { addToCart, cartItems } = useCart();
   const [removedIngredients, setRemovedIngredients] = useState<string[]>([]);
@@ -26,14 +28,12 @@ export default function FoodCustomizer({ food }: { food: FoodItem }) {
     food.optionalIngredients,
   );
   const extraCheesePrice = food.extraCheesePrice || 0;
-  const unitPrice =
-    food.price +
-    (extraCheese ? extraCheesePrice : 0) +
-    addedIngredients.reduce((total, option) => total + option.price, 0);
-  const displayedPrice = useMemo(
-    () => formatUsdWithLbp(unitPrice),
-    [unitPrice],
-  );
+  const unitPrice = addUsdAmounts([
+    food.price,
+    extraCheese ? extraCheesePrice : 0,
+    ...addedIngredients.map((option) => option.price),
+  ]);
+  const displayedPrice = formatUsdWithLbp(unitPrice);
   const inStock = food.qty > 0;
 
   const toggleIngredient = (ingredient: string) => {

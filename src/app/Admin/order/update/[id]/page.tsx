@@ -4,13 +4,14 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { getOrderById } from "@/server/getOrderById";
 import { updateOrderStatus } from "@/server/updateOrderStatus";
-import { formatUsdWithLbp } from "@/lib/currency";
+import { useCurrency } from "@/components/providers/CurrencyProvider";
 import { showMessage } from "@/components/MessageProvider";
 import { updatePaymentStatus } from "@/server/updatePaymentStatus";
 import { paymentStatusSchema } from "@/lib/validation";
 import type { PaymentStatus } from "@/types";
 
 export default function UpdateOrderPage() {
+  const { formatUsdWithLbp } = useCurrency();
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const id = params.id;
@@ -21,11 +22,12 @@ export default function UpdateOrderPage() {
   const [refundedAmount, setRefundedAmount] = useState(0);
   const [userEmail, setUserEmail] = useState("");
   const [total, setTotal] = useState(0);
+  const [exchangeRateUsed, setExchangeRateUsed] = useState<number | null>(null);
   const [itemsCount, setItemsCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [paymentLoading, setPaymentLoading] = useState(false);
 
-  const totalPrice = formatUsdWithLbp(total);
+  const totalPrice = formatUsdWithLbp(total, exchangeRateUsed);
 
   useEffect(() => {
     const fetchOrder = async () => {
@@ -48,6 +50,7 @@ export default function UpdateOrderPage() {
         setRefundedAmount(order.refundedAmount);
         setUserEmail(order.user?.email || "");
         setTotal(order.total);
+        setExchangeRateUsed(order.exchangeRateUsed);
         setItemsCount(order.items?.length || 0);
       } catch (err) {
         console.log("Error loading order:", err);
@@ -146,7 +149,7 @@ export default function UpdateOrderPage() {
             </span>
             {refundedAmount > 0 ? (
               <span className="rounded-full bg-violet-500/10 px-3 py-1 font-black text-violet-300">
-                Refunded: {formatUsdWithLbp(refundedAmount).usd}
+                Refunded: {formatUsdWithLbp(refundedAmount, exchangeRateUsed).usd}
               </span>
             ) : null}
           </div>

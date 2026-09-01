@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { requireRateLimitedAdmin } from "@/lib/auth";
 import { idSchema, validationMessage } from "@/lib/validation";
 import { writeAuditLog } from "@/lib/audit";
+import { serializeForClient } from "@/lib/serialize";
 
 function normalizeStatus(status: string) {
   const value = status.trim().toLowerCase();
@@ -21,7 +22,7 @@ export async function deleteOrder(id: string) {
   if (!parsed.success) throw new Error(validationMessage(parsed.error));
   const validId = parsed.data;
 
-  return prisma.$transaction(
+  const archived = await prisma.$transaction(
     async (tx) => {
       const order = await tx.order.findUnique({
         where: { id: validId },
@@ -109,4 +110,5 @@ export async function deleteOrder(id: string) {
     },
     { isolationLevel: "Serializable" },
   );
+  return serializeForClient(archived);
 }

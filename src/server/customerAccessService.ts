@@ -3,6 +3,7 @@ import "server-only";
 import type { Prisma } from "@/generated/prisma";
 import prisma from "@/lib/prisma";
 import { customerOrderInclude } from "@/lib/prismaSelects";
+import { serializeForClient } from "@/lib/serialize";
 
 const notificationInclude = {
   announcement: {
@@ -15,19 +16,21 @@ const notificationInclude = {
   },
 } satisfies Prisma.NotificationInclude;
 
-export function getOrdersForCustomer(userId: string) {
-  return prisma.order.findMany({
+export async function getOrdersForCustomer(userId: string) {
+  const orders = await prisma.order.findMany({
     where: { userId },
     include: customerOrderInclude(userId),
     orderBy: { createdAt: "desc" },
   });
+  return serializeForClient(orders);
 }
 
-export function getOrderForCustomer(userId: string, orderId: string) {
-  return prisma.order.findFirst({
+export async function getOrderForCustomer(userId: string, orderId: string) {
+  const order = await prisma.order.findFirst({
     where: { id: orderId, userId },
     include: customerOrderInclude(userId),
   });
+  return serializeForClient(order);
 }
 
 export async function getNotificationSummaryForCustomer(

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { showMessage } from "@/components/MessageProvider";
 import { useCart } from "@/context/CartContext";
-import { formatUsdWithLbp } from "@/lib/currency";
+import { useCurrency } from "@/components/providers/CurrencyProvider";
 import { getCheckoutSettings } from "@/server/checkoutSettings";
 import { purchaseCart } from "@/server/purchaseCart";
 
@@ -18,6 +18,7 @@ export default function CartCheckoutDialog({
   onClose: () => void;
 }) {
   const router = useRouter();
+  const { formatUsdWithLbp } = useCurrency();
   const { cartItems, cartCount, cartTotal, clearCart } = useCart();
   const [purchasing, setPurchasing] = useState(false);
   const [customerName, setCustomerName] = useState("");

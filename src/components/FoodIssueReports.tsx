@@ -2,11 +2,17 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { showMessage } from "@/components/MessageProvider";
-import { formatUsdWithLbp } from "@/lib/currency";
+import { useCurrency } from "@/components/providers/CurrencyProvider";
 import {
   getFoodIssueReportsForAdmin,
   reviewFoodIssueReport,
 } from "@/server/foodIssueReports";
+import {
+  minUsdAmount,
+  maxUsdAmount,
+  multiplyUsd,
+  subtractUsd,
+} from "@/lib/currency";
 
 type IssueReport = Awaited<
   ReturnType<typeof getFoodIssueReportsForAdmin>
@@ -29,6 +35,7 @@ function statusTone(status: string) {
 }
 
 export default function FoodIssueReports() {
+  const { formatUsdWithLbp } = useCurrency();
   const [reports, setReports] = useState<IssueReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [workingId, setWorkingId] = useState("");
@@ -46,9 +53,15 @@ export default function FoodIssueReports() {
         data.forEach((report) => {
           if (next[report.id] === undefined) {
             next[report.id] = String(
-              Math.min(
-                report.order.total,
-                report.orderItem.price * report.quantity,
+              minUsdAmount(
+                maxUsdAmount(
+                  0,
+                  subtractUsd(
+                    report.order.total,
+                    report.order.refundedAmount,
+                  ),
+                ),
+                multiplyUsd(report.orderItem.price, report.quantity),
               ).toFixed(2),
             );
           }

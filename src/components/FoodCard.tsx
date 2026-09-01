@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import type { FoodItem } from "@/types";
-import { formatUsdWithLbp } from "@/lib/currency";
+import { useCurrency } from "@/components/providers/CurrencyProvider";
 import { useCart } from "@/context/CartContext";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
@@ -24,6 +24,7 @@ export default function FoodCard({
   const [imageError, setImageError] = useState(false);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
   const { addToCart } = useCart();
+  const { formatUsdWithLbp } = useCurrency();
   const router = useRouter();
   const { t } = useTranslation();
 

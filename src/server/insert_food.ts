@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { requireRateLimitedAdmin } from "@/lib/auth";
 import { foodSchema, validationMessage } from "@/lib/validation";
 import { writeAuditLog } from "@/lib/audit";
+import { serializeForClient } from "@/lib/serialize";
 
 export async function insert_food(data: {
   name: string;
@@ -37,7 +38,7 @@ export async function insert_food(data: {
     } = parsed.data;
     const image = parsed.data.image || null;
 
-    return await prisma.$transaction(async (tx) => {
+    const food = await prisma.$transaction(async (tx) => {
       const foodType = await tx.foodType.findUnique({ where: { id: typeId } });
       if (!foodType) throw new Error("Selected food type does not exist.");
       const food = await tx.food.create({
@@ -89,6 +90,7 @@ export async function insert_food(data: {
       );
       return food;
     });
+    return serializeForClient(food);
   } catch (err) {
     console.log("Error inserting food:", err);
     throw err;

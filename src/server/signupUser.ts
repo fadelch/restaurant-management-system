@@ -65,7 +65,6 @@ export async function signupUser(data: {
         name,
         email,
         password: passwordHash,
-        confirm_password: null,
         isAdmin: false,
       },
     });

@@ -5,6 +5,8 @@ import { z } from "zod";
 import { requireRateLimitedAdmin } from "@/lib/auth";
 import { idSchema, validationMessage } from "@/lib/validation";
 import { writeAuditLog } from "@/lib/audit";
+import { calculateLineTotal } from "@/lib/money";
+import { serializeForClient } from "@/lib/serialize";
 
 const schema = z.object({
   orderId: idSchema,
@@ -46,7 +48,7 @@ export async function insert_order_item(data: {
         select: { qty: true },
       });
       const price = food.price;
-      const itemTotal = price * quantity;
+      const itemTotal = calculateLineTotal(price, quantity);
       const orderItem = await tx.orderItem.create({
         data: {
           orderId,
@@ -100,7 +102,7 @@ export async function insert_order_item(data: {
 
       return orderItem;
     });
-    return result;
+    return serializeForClient(result);
   } catch (err) {
     console.log("Error inserting order item:", err);
     throw err;

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { showMessage } from "@/components/MessageProvider";
-import { formatUsdWithLbp } from "@/lib/currency";
+import { useCurrency } from "@/components/providers/CurrencyProvider";
 import { submitFoodIssueReport } from "@/server/foodIssueReports";
 import type { FoodIssueReportItem } from "@/types";
 
@@ -41,6 +41,7 @@ export default function FoodIssueReportPanel({
   maxQuantity: number;
   initialReports?: FoodIssueReportItem[];
 }) {
+  const { formatUsdWithLbp } = useCurrency();
   const [reports, setReports] = useState(initialReports);
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState<(typeof reasons)[number]["value"]>(

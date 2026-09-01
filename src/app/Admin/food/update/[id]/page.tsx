@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { getAdminFoodById } from "@/server/getFoodById";
 import { updateFood } from "@/server/updateFood";
 import { getFoodTypes } from "@/server/getFoodTypes";
-import { formatUsdWithLbp } from "@/lib/currency";
+import { useCurrency } from "@/components/providers/CurrencyProvider";
 import type { FoodTypeSummary } from "@/types";
 import { showMessage } from "@/components/MessageProvider";
 import FoodImageUpload from "@/components/FoodImageUpload";
@@ -16,6 +16,7 @@ import {
 } from "@/lib/foodOptions";
 
 export default function UpdateFoodPage() {
+  const { formatUsdWithLbp } = useCurrency();
   const router = useRouter();
   const params = useParams<{ id: string }>();
 

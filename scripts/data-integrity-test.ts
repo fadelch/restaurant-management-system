@@ -184,8 +184,8 @@ async function main() {
       historicalOrder.customerAddress,
       "Order-time delivery address",
     );
-    assert.equal(historicalOrder.total, 25);
-    assert.equal(historicalOrder.refundedAmount, 12.5);
+    assert.equal(historicalOrder.total.equals(25), true);
+    assert.equal(historicalOrder.refundedAmount.equals(12.5), true);
     assert.equal(historicalOrder.items.length, 1);
     assert.equal(historicalOrder.items[0]?.foodName, "Original Ordered Food");
     assert.equal(historicalOrder.items[0]?.issueReports.length, 1);
