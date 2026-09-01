@@ -5,16 +5,26 @@ import { headers } from "next/headers";
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 
-type RateLimitPolicy =
+export type RateLimitPolicy =
   | "login-ip"
   | "login-account"
   | "signup-ip"
+  | "password-reset-request-ip"
+  | "password-reset-request-account"
+  | "password-reset-attempt-ip"
+  | "password-reset-attempt-token"
   | "checkout-user"
   | "image-upload-admin"
   | "food-issue-user"
   | "admin-user";
 
-type FailurePolicy = "closed" | "open";
+export type FailurePolicy = "closed" | "open";
+
+export type RateLimitInput = {
+  policy: RateLimitPolicy;
+  identifier: string;
+  failurePolicy: FailurePolicy;
+};
 
 const policySettings: Record<
   RateLimitPolicy,
@@ -23,6 +33,10 @@ const policySettings: Record<
   "login-ip": { limit: 10, window: "10 m" },
   "login-account": { limit: 5, window: "10 m" },
   "signup-ip": { limit: 5, window: "10 m" },
+  "password-reset-request-ip": { limit: 5, window: "15 m" },
+  "password-reset-request-account": { limit: 3, window: "15 m" },
+  "password-reset-attempt-ip": { limit: 10, window: "15 m" },
+  "password-reset-attempt-token": { limit: 5, window: "15 m" },
   "checkout-user": { limit: 10, window: "1 m" },
   "image-upload-admin": { limit: 10, window: "10 m" },
   "food-issue-user": { limit: 5, window: "10 m" },
@@ -93,11 +107,7 @@ export async function enforceRateLimit({
   policy,
   identifier,
   failurePolicy,
-}: {
-  policy: RateLimitPolicy;
-  identifier: string;
-  failurePolicy: FailurePolicy;
-}) {
+}: RateLimitInput) {
   if (!rateLimitConfigured()) {
     if (process.env.NODE_ENV === "production" && failurePolicy === "closed") {
       console.error("Required production rate limiter is not configured.", {
@@ -144,4 +154,3 @@ export async function enforceRateLimit({
     return { limited: false, configured: true };
   }
 }
-

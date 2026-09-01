@@ -112,7 +112,6 @@ async function run() {
         name: `Checkout Test ${index}`,
         email: `${emailPrefix}${index}@example.invalid`,
         password: passwordHash,
-        confirm_password: null,
       })),
     });
     users.push(

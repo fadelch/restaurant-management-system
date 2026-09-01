@@ -60,11 +60,11 @@ export default function OrderItemsTable() {
     direction: "desc",
   });
 
-  const fetchOrderItems = useCallback(async () => {
+  const fetchOrderItems = useCallback(async (queryOverride = query) => {
     setLoading(true);
     setError("");
     try {
-      const result = await getOrdersPage(query, true);
+      const result = await getOrdersPage(queryOverride, true);
       const orders = result.items;
 
       const finishedItems = orders.flatMap((order) => {
@@ -111,8 +111,9 @@ export default function OrderItemsTable() {
     try {
       setChangingArchive(true);
       const result = await clearFinishedOrders();
-      setQuery((current) => ({ ...current, page: 1 }));
-      await fetchOrderItems();
+      const nextQuery = { ...query, page: 1 };
+      setQuery(nextQuery);
+      await fetchOrderItems(nextQuery);
       showMessage(
         result.count
           ? `${result.count} finished order(s) cleared from this list.`
@@ -131,8 +132,9 @@ export default function OrderItemsTable() {
     try {
       setChangingArchive(true);
       const result = await restoreFinishedOrders();
-      setQuery((current) => ({ ...current, page: 1 }));
-      await fetchOrderItems();
+      const nextQuery = { ...query, page: 1 };
+      setQuery(nextQuery);
+      await fetchOrderItems(nextQuery);
       showMessage(`${result.count} finished order(s) restored.`);
     } catch (err) {
       showMessage(
@@ -199,7 +201,7 @@ export default function OrderItemsTable() {
             {error}
             <button
               type="button"
-              onClick={fetchOrderItems}
+              onClick={() => fetchOrderItems()}
               className="ml-3 cursor-pointer rounded bg-red-600 px-3 py-1 font-bold"
             >
               Retry

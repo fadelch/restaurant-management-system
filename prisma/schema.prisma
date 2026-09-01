@@ -9,15 +9,15 @@ datasource db {
 }
 
 model User {
-  id               String    @id @default(uuid())
-  name             String?
-  email            String?   @unique
-  password         String?
-  confirm_password String?
-  isAdmin          Boolean   @default(false)
-  isBanned         Boolean   @default(false)
-  createdAt        DateTime  @default(now())
-  deletedAt        DateTime?
+  id             String    @id @default(uuid())
+  name           String?
+  email          String?   @unique
+  password       String?
+  sessionVersion Int       @default(0)
+  isAdmin        Boolean   @default(false)
+  isBanned       Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+  deletedAt      DateTime?
 
   orders                  Order[]              @relation("UserOrders")
   favorites               Favorite[]           @relation("UserFavorites")
@@ -28,8 +28,23 @@ model User {
   announcements           Announcement[]       @relation("AnnouncementAuthor")
   notifications           Notification[]       @relation("UserNotifications")
   currencySettingsUpdates RestaurantSettings[] @relation("CurrencySettingsUpdater")
+  passwordResetTokens     PasswordResetToken[]
 
   @@index([deletedAt])
+}
+
+model PasswordResetToken {
+  id         String    @id @default(uuid())
+  userId     String
+  tokenHash  String    @unique @db.VarChar(64)
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, consumedAt])
+  @@index([expiresAt])
 }
 
 model FoodType {

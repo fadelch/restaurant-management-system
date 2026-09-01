@@ -17,6 +17,7 @@ const SESSION_DURATION_SECONDS = 60 * 60 * 24 * 7;
 const sessionPayloadSchema = z.object({
   userId: z.string().uuid(),
   expiresAt: z.number().int().positive(),
+  sessionVersion: z.number().int().nonnegative().default(0),
 });
 
 type SessionPayload = z.infer<typeof sessionPayloadSchema>;
@@ -39,6 +40,14 @@ function sign(value: string) {
 function encodeSession(payload: SessionPayload) {
   const encoded = Buffer.from(JSON.stringify(payload)).toString("base64url");
   return `${encoded}.${sign(encoded)}`;
+}
+
+export function createAuthSessionToken(
+  userId: string,
+  sessionVersion: number,
+  expiresAt = Date.now() + SESSION_DURATION_SECONDS * 1000,
+) {
+  return encodeSession({ userId, sessionVersion, expiresAt });
 }
 
 function decodeSession(token?: string): SessionPayload | null {
@@ -75,14 +84,11 @@ export function isSuperAdminEmail(email?: string | null) {
   );
 }
 
-export async function setAuthSession(userId: string) {
+export async function setAuthSession(userId: string, sessionVersion: number) {
   const cookieStore = await cookies();
   cookieStore.set(
     SESSION_COOKIE,
-    encodeSession({
-      userId,
-      expiresAt: Date.now() + SESSION_DURATION_SECONDS * 1000,
-    }),
+    createAuthSessionToken(userId, sessionVersion),
     {
       httpOnly: true,
       sameSite: "lax",
@@ -100,7 +106,13 @@ export async function clearAuthSession() {
 
 export async function getCurrentUser() {
   const cookieStore = await cookies();
-  const payload = decodeSession(cookieStore.get(SESSION_COOKIE)?.value);
+  return getUserFromAuthSessionToken(
+    cookieStore.get(SESSION_COOKIE)?.value,
+  );
+}
+
+export async function getUserFromAuthSessionToken(token?: string) {
+  const payload = decodeSession(token);
   if (!payload) return null;
 
   const user = await prisma.user.findUnique({
@@ -113,13 +125,25 @@ export async function getCurrentUser() {
       isBanned: true,
       createdAt: true,
       deletedAt: true,
+      sessionVersion: true,
     },
   });
-  if (!user || isAccountDisabled(user)) return null;
+  if (
+    !user ||
+    isAccountDisabled(user) ||
+    user.sessionVersion !== payload.sessionVersion
+  )
+    return null;
 
   const isSuperAdmin = isSuperAdminEmail(user.email);
   return {
-    ...user,
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    isAdmin: user.isAdmin,
+    isBanned: user.isBanned,
+    createdAt: user.createdAt,
+    deletedAt: user.deletedAt,
     isSuperAdmin,
     hasAdminAccess: user.isAdmin || isSuperAdmin,
   };
