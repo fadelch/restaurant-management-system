@@ -2,6 +2,7 @@
 
 import prisma from "@/lib/prisma";
 import { getRestaurantStatus } from "@/lib/restaurantHours";
+import { serializeForClient } from "@/lib/serialize";
 
 export async function getCheckoutSettings() {
   const [restaurant, zones] = await Promise.all([
@@ -19,5 +20,5 @@ export async function getCheckoutSettings() {
       },
     }),
   ]);
-  return { restaurant, zones };
+  return serializeForClient({ restaurant, zones });
 }

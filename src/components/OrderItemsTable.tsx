@@ -9,14 +9,16 @@ import {
 } from "@/server/adminData";
 import AdminPageControls from "@/components/AdminPageControls";
 import { showMessage } from "@/components/MessageProvider";
-import { formatUsdWithLbp } from "@/lib/currency";
+import { useCurrency } from "@/components/providers/CurrencyProvider";
 import type { AdminOrder } from "@/types";
 import { normalizeOptionalIngredients } from "@/lib/foodOptions";
+import { multiplyUsd } from "@/lib/currency";
 
 type FinishedOrderItem = AdminOrder["items"][number] & {
   orderStatus: string;
   orderUserEmail?: string | null;
   orderCreatedAt?: string | Date;
+  exchangeRateUsed?: number | null;
 };
 
 function normalizeStatus(status: string) {
@@ -34,6 +36,7 @@ function normalizeStatus(status: string) {
 }
 
 export default function OrderItemsTable() {
+  const { formatUsdWithLbp } = useCurrency();
   const [items, setItems] = useState<FinishedOrderItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -76,6 +79,7 @@ export default function OrderItemsTable() {
           orderStatus: status,
           orderUserEmail: order.user?.email || null,
           orderCreatedAt: order.createdAt,
+          exchangeRateUsed: order.exchangeRateUsed,
         }));
       });
 
@@ -246,8 +250,14 @@ export default function OrderItemsTable() {
                 </tr>
               ) : (
                 items.map((item) => {
-                  const price = formatUsdWithLbp(item.price);
-                  const total = formatUsdWithLbp(item.price * item.quantity);
+                  const price = formatUsdWithLbp(
+                    item.price,
+                    item.exchangeRateUsed,
+                  );
+                  const total = formatUsdWithLbp(
+                    multiplyUsd(item.price, item.quantity),
+                    item.exchangeRateUsed,
+                  );
 
                   return (
                     <tr

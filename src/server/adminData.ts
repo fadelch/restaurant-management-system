@@ -17,6 +17,7 @@ import {
 } from "@/lib/pagination";
 import { resolveOrderBy } from "@/lib/sorting";
 import type { PageInput } from "@/types/pagination";
+import { serializeForClient } from "@/lib/serialize";
 
 export async function getAuditLogPage(input: PageInput = {}) {
   await requireAdmin();
@@ -150,10 +151,10 @@ export async function getInventoryPage(input: PageInput = {}) {
       take: 25,
     }),
   ]);
-  return {
+  return serializeForClient({
     ...paginatedResult(items, total, options),
     recentMovements,
-  };
+  });
 }
 
 export async function getUsersPage(input: PageInput = {}) {
@@ -215,7 +216,7 @@ export async function getUsersPage(input: PageInput = {}) {
     }),
     prisma.user.count({ where }),
   ]);
-  return paginatedResult(items, total, options);
+  return serializeForClient(paginatedResult(items, total, options));
 }
 
 export async function getFoodsPage(input: PageInput = {}) {
@@ -270,7 +271,7 @@ export async function getFoodsPage(input: PageInput = {}) {
     }),
     prisma.food.count({ where }),
   ]);
-  return paginatedResult(items, total, options);
+  return serializeForClient(paginatedResult(items, total, options));
 }
 
 export async function getFoodTypesPage(input: PageInput = {}) {
@@ -380,10 +381,10 @@ export async function getOrdersPage(input: PageInput = {}, finished = false) {
         })
       : Promise.resolve(0),
   ]);
-  return {
+  return serializeForClient({
     ...paginatedResult(items, total, options),
     archivedTotal,
-  };
+  });
 }
 
 export async function clearFinishedOrders() {
@@ -484,7 +485,7 @@ export async function adjustInventory(input: z.input<typeof adjustmentSchema>) {
         },
         tx,
       );
-      return food;
+      return serializeForClient(food);
     },
     { isolationLevel: "Serializable" },
   );

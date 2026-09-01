@@ -1,11 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { loadEnvConfig } from "@next/env";
 import type { CheckoutInput } from "../src/server/checkoutService";
+import type { Prisma } from "../src/generated/prisma";
 
 loadEnvConfig(process.cwd());
 
 type TestUser = { id: string };
-type TestFood = { id: string; name: string; price: number };
+type TestFood = { id: string; name: string; price: Prisma.Decimal };
 
 function assert(condition: boolean, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -354,9 +355,9 @@ async function run() {
       include: { items: true },
     });
     assert(storedTamperOrder.userId === users[5].id, "Client user ID was trusted.");
-    assert(storedTamperOrder.total === tamperFood.price, "Client total was trusted.");
+    assert(storedTamperOrder.total.equals(tamperFood.price), "Client total was trusted.");
     assert(
-      storedTamperOrder.items[0]?.price === tamperFood.price,
+      storedTamperOrder.items[0]?.price.equals(tamperFood.price),
       "Client item price was trusted.",
     );
     assert(

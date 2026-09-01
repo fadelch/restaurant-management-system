@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import AnimatedSection from "@/components/AnimatedSection";
 import { getOrdersPage } from "@/server/adminData";
 import AdminPageControls from "@/components/AdminPageControls";
-import { formatUsdWithLbp } from "@/lib/currency";
+import { useCurrency } from "@/components/providers/CurrencyProvider";
 import type { AdminOrder } from "@/types";
 import { normalizeOptionalIngredients } from "@/lib/foodOptions";
 
@@ -23,6 +23,7 @@ function normalizeStatus(status: string) {
 }
 
 export default function OrderTable() {
+  const { formatUsdWithLbp } = useCurrency();
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -149,7 +150,10 @@ export default function OrderTable() {
                 </tr>
               ) : (
                 orders.map((order) => {
-                  const total = formatUsdWithLbp(order.total);
+                  const total = formatUsdWithLbp(
+                    order.total,
+                    order.exchangeRateUsed,
+                  );
                   const status = normalizeStatus(order.status);
 
                   return (

@@ -2,6 +2,11 @@
 
 import prisma from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
+import {
+  calculateRemainingBalance,
+  decimalToNumber,
+  sumUsd,
+} from "@/lib/money";
 
 function dateKey(date: Date) {
   return date.toISOString().slice(0, 10);
@@ -32,6 +37,7 @@ export async function getAdminDashboardStats() {
       prisma.order.findMany({
         select: {
           total: true,
+          refundedAmount: true,
           status: true,
           createdAt: true,
           items: {
@@ -69,7 +75,13 @@ export async function getAdminDashboardStats() {
   const completedOrders = orders.filter((order) => isCompleted(order.status));
   const salesOrders = completedOrders;
 
-  const totalSales = salesOrders.reduce((sum, order) => sum + order.total, 0);
+  const totalSales = decimalToNumber(
+    sumUsd(
+      salesOrders.map((order) =>
+        calculateRemainingBalance(order.total, order.refundedAmount),
+      ),
+    ),
+  );
   const ordersToday = orders.filter(
     (order) => order.createdAt >= todayStart,
   ).length;
@@ -85,9 +97,15 @@ export async function getAdminDashboardStats() {
     return {
       key,
       label: date.toLocaleDateString("en-US", { weekday: "short" }),
-      value: salesOrders
-        .filter((order) => dateKey(order.createdAt) === key)
-        .reduce((sum, order) => sum + order.total, 0),
+      value: decimalToNumber(
+        sumUsd(
+          salesOrders
+            .filter((order) => dateKey(order.createdAt) === key)
+            .map((order) =>
+              calculateRemainingBalance(order.total, order.refundedAmount),
+            ),
+        ),
+      ),
     };
   });
 
@@ -98,9 +116,15 @@ export async function getAdminDashboardStats() {
     return {
       key,
       label: date.toLocaleDateString("en-US", { month: "short" }),
-      value: salesOrders
-        .filter((order) => monthKey(order.createdAt) === key)
-        .reduce((sum, order) => sum + order.total, 0),
+      value: decimalToNumber(
+        sumUsd(
+          salesOrders
+            .filter((order) => monthKey(order.createdAt) === key)
+            .map((order) =>
+              calculateRemainingBalance(order.total, order.refundedAmount),
+            ),
+        ),
+      ),
     };
   });
 

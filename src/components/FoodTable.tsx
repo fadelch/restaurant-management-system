@@ -7,9 +7,10 @@ import InsertButton from "@/components/InsertButton";
 import { getFoodsPage } from "@/server/adminData";
 import AdminPageControls from "@/components/AdminPageControls";
 import type { AdminFoodItem } from "@/types";
-import { formatUsdWithLbp } from "@/lib/currency";
+import { useCurrency } from "@/components/providers/CurrencyProvider";
 
 export default function FoodTable() {
+  const { formatUsdWithLbp } = useCurrency();
   const [foods, setFoods] = useState<AdminFoodItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");

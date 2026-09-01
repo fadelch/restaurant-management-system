@@ -5,6 +5,7 @@ import { requireRateLimitedAdmin } from "@/lib/auth";
 import { idSchema, validationMessage } from "@/lib/validation";
 import { writeAuditLog } from "@/lib/audit";
 import { deleteUploadedFoodImage } from "@/lib/uploads";
+import { serializeForClient } from "@/lib/serialize";
 
 export async function deleteFood(id: string) {
   try {
@@ -42,7 +43,7 @@ export async function deleteFood(id: string) {
         },
       },
     });
-    return deleted;
+    return serializeForClient(deleted);
   } catch (err) {
     console.log("Error deleting food:", err);
     throw err;

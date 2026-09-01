@@ -10,6 +10,7 @@ import type {
 import { showMessage } from "@/components/MessageProvider";
 import { normalizeOptionalIngredients } from "@/lib/foodOptions";
 import { getCurrentSession } from "@/server/authActions";
+import { addUsdAmounts, multiplyUsd } from "@/lib/currency";
 
 export type { CartCustomization, CartItem } from "@/types";
 
@@ -79,13 +80,11 @@ function buildCartItem(
     ...food,
     cartKey: cartKey(food.id, normalized),
     cartQty: quantity,
-    unitPrice:
-      food.price +
-      (normalized.extraCheese ? food.extraCheesePrice || 0 : 0) +
-      normalized.addedIngredients.reduce(
-        (total, option) => total + option.price,
-        0,
-      ),
+    unitPrice: addUsdAmounts([
+      food.price,
+      normalized.extraCheese ? food.extraCheesePrice || 0 : 0,
+      ...normalized.addedIngredients.map((option) => option.price),
+    ]),
     customization: normalized,
   };
 }
@@ -248,9 +247,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   );
   const cartTotal = useMemo(
     () =>
-      cartItems.reduce(
-        (total, item) => total + item.unitPrice * item.cartQty,
-        0,
+      addUsdAmounts(
+        cartItems.map((item) => multiplyUsd(item.unitPrice, item.cartQty)),
       ),
     [cartItems],
   );

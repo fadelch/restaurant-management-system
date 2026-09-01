@@ -5,13 +5,24 @@ import prisma from "@/lib/prisma";
 import { requireAdmin, requireRateLimitedAdmin } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { idSchema, validationMessage } from "@/lib/validation";
+import { hasAtMostDecimalPlaces } from "@/lib/moneyInput";
+import { serializeForClient } from "@/lib/serialize";
+import { updateUsdToLbpRateForAdmin } from "@/server/currencySettingsService";
+
+const usdInput = z.coerce
+  .number()
+  .finite()
+  .refine(
+    (value) => hasAtMostDecimalPlaces(value, 2),
+    "USD amounts may contain at most two decimal places.",
+  );
 
 const zoneSchema = z.object({
   id: idSchema.optional(),
   name: z.string().trim().min(1, "Area name is required.").max(80),
   description: z.string().trim().max(300).default(""),
-  deliveryFee: z.coerce.number().min(0).max(10_000),
-  minimumOrder: z.coerce.number().min(0).max(100_000),
+  deliveryFee: usdInput.min(0).max(10_000),
+  minimumOrder: usdInput.min(0).max(100_000),
   estimatedMinutes: z.coerce.number().int().min(5).max(600),
   isAvailable: z.boolean(),
 });
@@ -52,8 +63,8 @@ const couponSchema = z.object({
     ),
   description: z.string().trim().max(300).default(""),
   discountType: z.enum(["percentage", "fixed"]),
-  value: z.coerce.number().positive().max(100_000),
-  minimumOrder: z.coerce.number().min(0).max(100_000),
+  value: z.coerce.number().finite().positive().max(100_000),
+  minimumOrder: usdInput.min(0).max(100_000),
   expiresAt: z.string().nullable().optional(),
   usageLimit: z.coerce
     .number()
@@ -71,6 +82,37 @@ const couponSchema = z.object({
     .nullable()
     .optional(),
   isActive: z.boolean(),
+}).superRefine((coupon, context) => {
+  const places = coupon.discountType === "percentage" ? 4 : 2;
+  if (!hasAtMostDecimalPlaces(coupon.value, places)) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["value"],
+      message:
+        coupon.discountType === "percentage"
+          ? "Percentage rates may contain at most four decimal places."
+          : "Fixed discounts may contain at most two decimal places.",
+    });
+  }
+  if (coupon.discountType === "percentage" && coupon.value > 100) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["value"],
+      message: "Percentage discounts cannot be greater than 100%.",
+    });
+  }
+});
+
+const exchangeRateSchema = z.object({
+  usdToLbpRate: z.coerce
+    .number()
+    .finite()
+    .positive("The USD/LBP rate must be greater than zero.")
+    .max(10_000_000)
+    .refine(
+      (value) => hasAtMostDecimalPlaces(value, 4),
+      "The exchange rate may contain at most four decimal places.",
+    ),
 });
 
 function parseOrThrow<T>(
@@ -82,7 +124,7 @@ function parseOrThrow<T>(
 
 export async function getAdminOperations() {
   await requireAdmin();
-  const [zones, hours, coupons, users, categories] = await Promise.all([
+  const [zones, hours, coupons, users, categories, currencySettings] = await Promise.all([
     prisma.deliveryZone.findMany({ orderBy: { name: "asc" } }),
     prisma.restaurantHours.findMany({ orderBy: { dayOfWeek: "asc" } }),
     prisma.coupon.findMany({
@@ -101,8 +143,19 @@ export async function getAdminOperations() {
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),
+    prisma.restaurantSettings.findUnique({
+      where: { id: 1 },
+      select: { usdToLbpRate: true, updatedAt: true },
+    }),
   ]);
-  return { zones, hours, coupons, users, categories };
+  return serializeForClient({
+    zones,
+    hours,
+    coupons,
+    users,
+    categories,
+    currencySettings,
+  });
 }
 
 export async function saveDeliveryZone(input: z.input<typeof zoneSchema>) {
@@ -139,7 +192,7 @@ export async function saveDeliveryZone(input: z.input<typeof zoneSchema>) {
     entityId: zone.id,
     changes: { before, after: zone },
   });
-  return zone;
+  return serializeForClient(zone);
 }
 
 export async function deleteDeliveryZone(id: string) {
@@ -183,8 +236,6 @@ export async function saveRestaurantHours(
 export async function saveCoupon(input: unknown) {
   const actor = await requireRateLimitedAdmin();
   const data = parseOrThrow(couponSchema.safeParse(input));
-  if (data.discountType === "percentage" && data.value > 100)
-    throw new Error("Percentage discounts cannot be greater than 100%.");
   const couponData = {
     code: data.code.toUpperCase(),
     description: data.description,
@@ -209,7 +260,17 @@ export async function saveCoupon(input: unknown) {
     entityId: coupon.id,
     changes: { before, after: coupon },
   });
-  return coupon;
+  return serializeForClient(coupon);
+}
+
+export async function saveUsdToLbpRate(input: unknown) {
+  const actor = await requireRateLimitedAdmin();
+  const data = parseOrThrow(exchangeRateSchema.safeParse(input));
+  const settings = await updateUsdToLbpRateForAdmin(
+    actor,
+    data.usdToLbpRate,
+  );
+  return serializeForClient(settings);
 }
 
 export async function deleteCoupon(id: string) {

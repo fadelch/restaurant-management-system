@@ -5,6 +5,7 @@ import type {
   adminFoodListInclude,
   publicMenuFoodSelect,
 } from "@/lib/prismaSelects";
+import type { Serialized } from "@/lib/serialize";
 
 export type OptionalIngredient = { name: string; price: number };
 
@@ -14,14 +15,16 @@ type MenuFoodRecord = Prisma.FoodGetPayload<{
   select: typeof publicMenuFoodSelect;
 }>;
 
-export type FoodItem = MenuFoodRecord & {
+export type FoodItem = Serialized<MenuFoodRecord> & {
   isFavorite?: boolean;
   popularity?: number;
 };
 
-export type AdminFoodItem = Prisma.FoodGetPayload<{
-  include: typeof adminFoodListInclude;
-}>;
+export type AdminFoodItem = Serialized<
+  Prisma.FoodGetPayload<{
+    include: typeof adminFoodListInclude;
+  }>
+>;
 
 export type FoodInput = z.input<typeof foodSchema>;
 export type CreateFoodInput = FoodInput;

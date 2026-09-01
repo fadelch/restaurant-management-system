@@ -4,10 +4,11 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { getOrderById } from "@/server/getOrderById";
 import { deleteOrder } from "@/server/deleteOrder";
-import { formatUsdWithLbp } from "@/lib/currency";
+import { useCurrency } from "@/components/providers/CurrencyProvider";
 import { showMessage } from "@/components/MessageProvider";
 
 export default function DeleteOrderPage() {
+  const { formatUsdWithLbp } = useCurrency();
   const router = useRouter();
   const params = useParams<{ id: string }>();
 
@@ -16,10 +17,11 @@ export default function DeleteOrderPage() {
   const [userEmail, setUserEmail] = useState("");
   const [status, setStatus] = useState("");
   const [total, setTotal] = useState(0);
+  const [exchangeRateUsed, setExchangeRateUsed] = useState<number | null>(null);
   const [itemsCount, setItemsCount] = useState(0);
   const [loading, setLoading] = useState(false);
 
-  const totalPrice = formatUsdWithLbp(total);
+  const totalPrice = formatUsdWithLbp(total, exchangeRateUsed);
 
   useEffect(() => {
     const fetchOrder = async () => {
@@ -35,6 +37,7 @@ export default function DeleteOrderPage() {
         setUserEmail(order.user?.email || "");
         setStatus(order.status);
         setTotal(order.total);
+        setExchangeRateUsed(order.exchangeRateUsed);
         setItemsCount(order.items?.length || 0);
       } catch (err) {
         console.log("Error loading order:", err);

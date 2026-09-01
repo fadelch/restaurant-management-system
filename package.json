@@ -14,6 +14,7 @@
     "test:checkout": "tsx --conditions=react-server scripts/checkout-concurrency-test.ts",
     "test:authorization": "tsx --conditions=react-server scripts/authorization-boundary-test.ts",
     "test:data-integrity": "tsx --conditions=react-server scripts/data-integrity-test.ts",
+    "test:financial": "tsx --conditions=react-server scripts/financial-correctness-test.ts",
     "test:admin-browser": "tsx --conditions=react-server scripts/admin-browser-health-test.ts",
     "test:admin-login-browser": "tsx --conditions=react-server scripts/admin-login-browser-test.ts",
     "test:database-outage": "tsx scripts/database-outage-probe.ts",

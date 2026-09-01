@@ -4,14 +4,16 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Nav_bar from "@/components/nav_bar";
 import { showMessage } from "@/components/MessageProvider";
-import { formatUsdWithLbp } from "@/lib/currency";
+import { useCurrency } from "@/components/providers/CurrencyProvider";
 import { getCustomerOrderById } from "@/server/getCustomerOrders";
 import type { CustomerOrder } from "@/types";
 import { normalizeOptionalIngredients } from "@/lib/foodOptions";
+import { multiplyUsd } from "@/lib/currency";
 
 export default function OrderConfirmationPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const { formatUsdWithLbp } = useCurrency();
   const orderId = params.id;
   const [order, setOrder] = useState<CustomerOrder | null>(null);
   const [loading, setLoading] = useState(true);
@@ -57,7 +59,7 @@ export default function OrderConfirmationPage() {
 
   if (!order) return null;
 
-  const total = formatUsdWithLbp(order.total);
+  const total = formatUsdWithLbp(order.total, order.exchangeRateUsed);
   const estimatedTime = order.estimatedReadyAt
     ? new Date(order.estimatedReadyAt).toLocaleTimeString([], {
         hour: "2-digit",
@@ -156,7 +158,7 @@ export default function OrderConfirmationPage() {
                       ) : null}
                     </div>
                     <p className="font-black text-green-300">
-                      {formatUsdWithLbp(item.price * item.quantity).usd}
+                      {formatUsdWithLbp(multiplyUsd(item.price, item.quantity), order.exchangeRateUsed).usd}
                     </p>
                   </div>
                 ))}
@@ -180,18 +182,18 @@ export default function OrderConfirmationPage() {
                 <p className="text-sm text-gray-400">Total</p>
                 {order.subtotal !== undefined ? (
                   <p className="mt-2 text-sm text-gray-300">
-                    Subtotal: {formatUsdWithLbp(order.subtotal).usd}
+                    Subtotal: {formatUsdWithLbp(order.subtotal, order.exchangeRateUsed).usd}
                   </p>
                 ) : null}
                 {order.deliveryFee ? (
                   <p className="text-sm text-gray-300">
-                    Delivery: {formatUsdWithLbp(order.deliveryFee).usd}
+                    Delivery: {formatUsdWithLbp(order.deliveryFee, order.exchangeRateUsed).usd}
                   </p>
                 ) : null}
                 {order.discountAmount ? (
                   <p className="text-sm font-bold text-emerald-300">
                     Discount{order.couponCode ? ` (${order.couponCode})` : ""}:
-                    -{formatUsdWithLbp(order.discountAmount).usd}
+                    -{formatUsdWithLbp(order.discountAmount, order.exchangeRateUsed).usd}
                   </p>
                 ) : null}
                 <p className="mt-1 text-xl font-black text-green-300">

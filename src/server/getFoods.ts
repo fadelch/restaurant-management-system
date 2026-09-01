@@ -2,6 +2,7 @@
 
 import prisma from "@/lib/prisma";
 import { publicMenuFoodSelect } from "@/lib/prismaSelects";
+import { serializeForClient } from "@/lib/serialize";
 
 export async function getFoods() {
   try {
@@ -19,10 +20,10 @@ export async function getFoods() {
     const popularityByFood = new Map(
       sales.map((sale) => [sale.foodId, sale._sum?.quantity || 0]),
     );
-    return foods.map((food) => ({
+    return serializeForClient(foods.map((food) => ({
       ...food,
       popularity: popularityByFood.get(food.id) || 0,
-    }));
+    })));
   } catch (err) {
     console.log("Error fetching foods:", err);
     throw new Error("Failed to fetch foods.");

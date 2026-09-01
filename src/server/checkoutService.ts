@@ -22,6 +22,18 @@ import {
   addOperationalBreadcrumb,
   captureOperationalError,
 } from "@/lib/monitoring";
+import {
+  calculateFixedDiscount,
+  calculateLineTotal,
+  calculateOrderTotal,
+  calculatePercentageDiscount,
+  calculateUnitPrice,
+  decimal,
+  formatUsdForMessage,
+  sumUsd,
+} from "@/lib/money";
+import { getCurrentUsdToLbpRate } from "@/lib/currencySettings";
+import { serializeForClient } from "@/lib/serialize";
 
 export const checkoutInputSchema = z.object({
   checkoutRequestId: z.string().uuid(),
@@ -110,7 +122,7 @@ export async function checkoutForAuthenticatedUser(
     addOperationalBreadcrumb("checkout.idempotent_replay", {
       request: requestHash.slice(0, 12),
     });
-    return existingOrder;
+    return serializeForClient(existingOrder);
   }
   const restaurant = await (runtime.restaurantStatus || getRestaurantStatus)();
   if (!restaurant.isOpen) throw new Error(restaurant.message);
@@ -153,17 +165,18 @@ export async function checkoutForAuthenticatedUser(
       food,
       removedIngredients,
       addedIngredients,
-      unitPrice:
-        food.price +
-        (item.extraCheese ? food.extraCheesePrice : 0) +
-        addedIngredients.reduce((total, option) => total + option.price, 0),
+      unitPrice: calculateUnitPrice(food.price, [
+        ...(item.extraCheese ? [food.extraCheesePrice] : []),
+        ...addedIngredients.map((option) => option.price),
+      ]),
     };
   });
-  const subtotal = lineDetails.reduce(
-    (sum, line) => sum + line.unitPrice * line.item.cartQty,
-    0,
+  const subtotal = sumUsd(
+    lineDetails.map((line) =>
+      calculateLineTotal(line.unitPrice, line.item.cartQty),
+    ),
   );
-  const [zone, requestedCoupon] = await Promise.all([
+  const [zone, requestedCoupon, exchangeRate] = await Promise.all([
     data.fulfillmentType === "delivery"
       ? prisma.deliveryZone.findUnique({
           where: { id: data.deliveryZoneId! },
@@ -174,15 +187,16 @@ export async function checkoutForAuthenticatedUser(
           where: { code: data.couponCode.toUpperCase() },
         })
       : Promise.resolve(null),
+    getCurrentUsdToLbpRate(),
   ]);
   if (data.fulfillmentType === "delivery" && (!zone || !zone.isAvailable))
     throw new Error("This delivery area is not available.");
-  if (zone && subtotal < zone.minimumOrder)
+  if (zone && subtotal.lessThan(zone.minimumOrder))
     throw new Error(
-      `The minimum order for ${zone.name} is $${zone.minimumOrder.toFixed(2)}.`,
+      `The minimum order for ${zone.name} is ${formatUsdForMessage(zone.minimumOrder)}.`,
     );
   let coupon = null;
-  let discountAmount = 0;
+  let discountAmount = decimal(0);
   if (data.couponCode) {
     coupon = requestedCoupon;
     if (!coupon || !coupon.isActive)
@@ -193,29 +207,28 @@ export async function checkoutForAuthenticatedUser(
       throw new Error("This coupon has reached its usage limit.");
     if (coupon.userId && coupon.userId !== user.id)
       throw new Error("This coupon is not assigned to your account.");
-    if (subtotal < coupon.minimumOrder)
+    if (subtotal.lessThan(coupon.minimumOrder))
       throw new Error(
-        `This coupon requires a minimum order of $${coupon.minimumOrder.toFixed(2)}.`,
+        `This coupon requires a minimum order of ${formatUsdForMessage(coupon.minimumOrder)}.`,
       );
     const eligibleSubtotal = coupon.categoryId
-      ? lineDetails.reduce(
-          (sum, line) =>
-            sum +
-            (line.food.typeId === coupon!.categoryId
-              ? line.unitPrice * line.item.cartQty
-              : 0),
-          0,
+      ? sumUsd(
+          lineDetails
+            .filter((line) => line.food.typeId === coupon!.categoryId)
+            .map((line) =>
+              calculateLineTotal(line.unitPrice, line.item.cartQty),
+            ),
         )
       : subtotal;
-    if (eligibleSubtotal <= 0)
+    if (eligibleSubtotal.lessThanOrEqualTo(0))
       throw new Error("This coupon does not apply to any item in your cart.");
     discountAmount =
       coupon.discountType === "percentage"
-        ? eligibleSubtotal * (coupon.value / 100)
-        : Math.min(coupon.value, eligibleSubtotal);
+        ? calculatePercentageDiscount(eligibleSubtotal, coupon.value)
+        : calculateFixedDiscount(eligibleSubtotal, coupon.value);
   }
-  const deliveryFee = zone?.deliveryFee || 0;
-  const total = Math.max(0, subtotal + deliveryFee - discountAmount);
+  const deliveryFee = zone?.deliveryFee ?? decimal(0);
+  const total = calculateOrderTotal(subtotal, deliveryFee, discountAmount);
   const datePart = new Date().toISOString().slice(0, 10).replaceAll("-", "");
   const orderNumber = `ORD-${datePart}-${randomUUID().slice(0, 6).toUpperCase()}`;
   const estimatedMinutes =
@@ -287,6 +300,7 @@ export async function checkoutForAuthenticatedUser(
               deliveryZoneId: zone?.id || null,
               couponId: coupon?.id || null,
               couponCode: coupon?.code || null,
+              exchangeRateUsed: exchangeRate,
             },
           });
 
@@ -426,7 +440,7 @@ export async function checkoutForAuthenticatedUser(
     }
   };
 
-  return await withCheckoutRetry(completeCheckout, {
+  const completed = await withCheckoutRetry(completeCheckout, {
       onRetry(error, attempt) {
         console.warn("Retrying a transient checkout transaction.", {
           code: databaseErrorCode(error),
@@ -441,6 +455,7 @@ export async function checkoutForAuthenticatedUser(
         });
       },
   });
+  return serializeForClient(completed);
   } catch (error) {
     if (
       error instanceof CheckoutRequestConflictError ||

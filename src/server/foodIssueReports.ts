@@ -8,13 +8,15 @@ import {
   requireUser,
 } from "@/lib/auth";
 import { enforceRateLimit } from "@/lib/rateLimit";
-import { writeAuditLog } from "@/lib/audit";
 import {
   foodIssueReasonSchema,
   foodIssueStatusSchema,
   idSchema,
+  usdAmountSchema,
   validationMessage,
 } from "@/lib/validation";
+import { serializeForClient } from "@/lib/serialize";
+import { reviewFoodIssueForAdmin } from "@/server/refundService";
 
 const submitIssueSchema = z.object({
   orderId: idSchema,
@@ -31,7 +33,7 @@ const submitIssueSchema = z.object({
 const reviewIssueSchema = z.object({
   id: idSchema,
   status: foodIssueStatusSchema.exclude(["pending"]),
-  refundAmount: z.coerce.number().min(0).max(100_000).optional(),
+  refundAmount: usdAmountSchema.min(0).max(100_000).optional(),
 });
 
 export async function submitFoodIssueReport(
@@ -86,7 +88,7 @@ export async function submitFoodIssueReport(
     );
   }
 
-  return prisma.foodIssueReport.create({
+  const report = await prisma.foodIssueReport.create({
     data: {
       orderId: orderItem.orderId,
       orderItemId: orderItem.id,
@@ -97,6 +99,7 @@ export async function submitFoodIssueReport(
     },
     include: { orderItem: { include: { food: true } } },
   });
+  return serializeForClient(report);
 }
 
 export async function getFoodIssueReportsForAdmin() {
@@ -119,12 +122,13 @@ export async function getFoodIssueReportsForAdmin() {
     take: 100,
   });
 
-  return reports.sort((first, second) => {
+  const sorted = reports.sort((first, second) => {
     if (first.status === second.status) return 0;
     if (first.status === "pending") return -1;
     if (second.status === "pending") return 1;
     return 0;
   });
+  return serializeForClient(sorted);
 }
 
 export async function reviewFoodIssueReport(
@@ -135,76 +139,6 @@ export async function reviewFoodIssueReport(
   if (!parsed.success) throw new Error(validationMessage(parsed.error));
   const data = parsed.data;
 
-  return prisma.$transaction(
-    async (tx) => {
-      const report = await tx.foodIssueReport.findUnique({
-        where: { id: data.id },
-        include: { order: true, orderItem: { include: { food: true } } },
-      });
-      if (!report) throw new Error("Food issue report was not found.");
-      if (report.status !== "pending") {
-        throw new Error("This food issue report has already been reviewed.");
-      }
-      const maximumRefund = Math.min(
-        report.order.total,
-        report.orderItem.price * report.quantity,
-      );
-      const refundAmount =
-        data.status === "approved"
-          ? Math.round((data.refundAmount ?? maximumRefund) * 100) / 100
-          : 0;
-      if (refundAmount > maximumRefund) {
-        throw new Error(
-          `The refund cannot exceed $${maximumRefund.toFixed(2)} for the reported quantity.`,
-        );
-      }
-      const claimed = await tx.foodIssueReport.updateMany({
-        where: { id: report.id, status: "pending" },
-        data: {
-          status: data.status,
-          refundAmount,
-          resolvedAt: new Date(),
-        },
-      });
-      if (claimed.count !== 1) {
-        throw new Error("This food issue report has already been reviewed.");
-      }
-      if (data.status === "approved") {
-        await tx.order.update({
-          where: { id: report.orderId },
-          data: {
-            paymentStatus: "refunded",
-            refundedAmount: Math.min(
-              report.order.total,
-              report.order.refundedAmount + refundAmount,
-            ),
-          },
-        });
-      }
-      const updated = await tx.foodIssueReport.findUniqueOrThrow({
-        where: { id: report.id },
-        include: { orderItem: { include: { food: true } } },
-      });
-      await writeAuditLog(
-        actor,
-        {
-          action: "REVIEW_FOOD_ISSUE",
-          entityType: "FoodIssueReport",
-          entityId: report.id,
-          changes: {
-            before: {
-              status: report.status,
-              refundAmount: report.refundAmount,
-            },
-            after: { status: data.status, refundAmount },
-            food: report.orderItem.foodName,
-            reason: report.reason,
-          },
-        },
-        tx,
-      );
-      return updated;
-    },
-    { isolationLevel: "Serializable" },
-  );
+  const updatedReport = await reviewFoodIssueForAdmin(actor, data);
+  return serializeForClient(updatedReport);
 }

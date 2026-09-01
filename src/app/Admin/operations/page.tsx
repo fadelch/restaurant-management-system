@@ -9,7 +9,8 @@ export default function OperationsPage() {
             Restaurant Operations
           </h1>
           <p className="mt-2 text-gray-400">
-            Manage delivery zones, opening hours, discounts, and coupons.
+            Manage currency, delivery zones, opening hours, discounts, and
+            coupons.
           </p>
         </div>
         <RestaurantOperationsManager />

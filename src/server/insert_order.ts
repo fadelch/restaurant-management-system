@@ -9,6 +9,8 @@ import {
 } from "@/lib/validation";
 import { writeAuditLog } from "@/lib/audit";
 import { publicUserSelect } from "@/lib/prismaSelects";
+import { getCurrentUsdToLbpRate } from "@/lib/currencySettings";
+import { serializeForClient } from "@/lib/serialize";
 
 export async function insert_order(data: { userId: string; status: string }) {
   try {
@@ -33,12 +35,14 @@ export async function insert_order(data: { userId: string; status: string }) {
       throw new Error("Selected user does not exist.");
     }
 
+    const exchangeRateUsed = await getCurrentUsdToLbpRate();
     const order = await prisma.order.create({
       data: {
         userId,
         customerName: user.name,
         status,
         total: 0,
+        exchangeRateUsed,
         paymentMethod: "Pay on Delivery",
         paymentStatus:
           status === "done"
@@ -58,7 +62,7 @@ export async function insert_order(data: { userId: string; status: string }) {
       entityId: order.id,
       changes: { userId, status },
     });
-    return order;
+    return serializeForClient(order);
   } catch (err) {
     console.log("Error inserting order:", err);
     throw err;
