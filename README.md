@@ -151,6 +151,27 @@ Open the application in your browser:
 http://localhost:3000
 ```
 
+## Before Publishing — Required Configuration Reminder
+
+Do not publish the restaurant application until these items are completed:
+
+- [ ] Set `APP_BASE_URL` to the final hosted HTTPS address, not localhost.
+- [ ] Create a Resend account and verify the restaurant-owned sending domain
+      with the required SPF and DKIM DNS records.
+- [ ] Create a Resend API key with **Sending access** and store it as
+      `RESEND_API_KEY` in the hosting provider's environment variables.
+- [ ] Set `EMAIL_FROM` to an address on the verified restaurant domain, for
+      example `Restaurant Name <accounts@yourrestaurant.com>`.
+- [ ] Configure `UPSTASH_REDIS_REST_URL` and
+      `UPSTASH_REDIS_REST_TOKEN` so production authentication, password
+      recovery, checkout, and protected mutations do not fail closed.
+- [ ] Add all production secrets through the hosting dashboard. Never commit
+      them to Git or place them in client-side variables.
+- [ ] Redeploy after adding or changing environment variables.
+- [ ] Test password reset with a real active customer account, confirm the
+      link uses the hosted domain, and verify delivery in the Resend logs and
+      the customer's inbox/spam folder.
+
 ## Available Commands
 
 ```bash

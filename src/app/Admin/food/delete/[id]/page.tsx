@@ -7,8 +7,10 @@ import { getAdminFoodById } from "@/server/getFoodById";
 import { deleteFood } from "@/server/deleteFood";
 import { useCurrency } from "@/components/providers/CurrencyProvider";
 import { showMessage } from "@/components/MessageProvider";
+import { useConfirmDialog } from "@/components/ConfirmDialog";
 
 export default function DeleteFoodPage() {
+  const { confirm: askConfirmation, dialog } = useConfirmDialog();
   const { formatUsdWithLbp } = useCurrency();
   const router = useRouter();
   const params = useParams<{ id: string }>();
@@ -51,6 +53,12 @@ export default function DeleteFoodPage() {
   }, [id, router]);
 
   const handleDelete = async () => {
+    const confirmed = await askConfirmation({
+      title: "Delete food?",
+      message: `Permanently delete ${name || "this food"}?`,
+    });
+    if (!confirmed) return;
+
     try {
       setLoading(true);
 
@@ -68,7 +76,8 @@ export default function DeleteFoodPage() {
   };
 
   return (
-    <div className="min-h-dvh bg-[#120000] px-3 py-6 text-white sm:px-6 sm:py-10">
+    <>
+      <div className="min-h-dvh bg-[#120000] px-3 py-6 text-white sm:px-6 sm:py-10">
       <div className="mx-auto max-w-xl rounded-2xl border border-red-900/50 bg-[#1a0000] p-5 shadow-2xl sm:rounded-3xl sm:p-8">
         <p className="text-sm font-bold uppercase tracking-[0.22em] text-red-400 sm:tracking-[0.3em]">
           Admin Delete
@@ -144,6 +153,8 @@ export default function DeleteFoodPage() {
           </button>
         </div>
       </div>
-    </div>
+      </div>
+      {dialog}
+    </>
   );
 }

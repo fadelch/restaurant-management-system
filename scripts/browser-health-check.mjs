@@ -9,6 +9,9 @@ const sessionCookie = process.env.SMOKE_SESSION_COOKIE;
 const sessionUserEmail = process.env.SMOKE_USER_EMAIL;
 const loginEmail = process.env.SMOKE_LOGIN_EMAIL;
 const loginPassword = process.env.SMOKE_LOGIN_PASSWORD;
+const testAdminConfirmations =
+  process.env.SMOKE_TEST_ADMIN_CONFIRMATIONS === "true";
+const testDeleteFoodId = process.env.SMOKE_TEST_DELETE_FOOD_ID;
 const parsedExtraRoutes = JSON.parse(process.env.SMOKE_EXTRA_ROUTES || "[]");
 const extraRoutes = Array.isArray(parsedExtraRoutes)
   ? parsedExtraRoutes
@@ -532,6 +535,134 @@ try {
   pages.push(await visit("not-found", "/definitely-not-a-route"));
   for (const route of extraRoutes) {
     pages.push(await visit(`extra:${route}`, route));
+  }
+
+  if (testAdminConfirmations) {
+    await visit("confirmation-setup", "/Admin");
+    activeCapture = { console: [], httpErrors: [], networkFailures: [] };
+    let opened = { result: { value: false } };
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      opened = await client.send("Runtime.evaluate", {
+        expression: `(() => {
+          const button = Array.from(document.querySelectorAll("button")).find(
+            (item) => item.textContent?.trim() === "Clear finished list",
+          );
+          if (!button || button.disabled) return false;
+          button.click();
+          return true;
+        })()`,
+        returnByValue: true,
+      });
+      if (opened.result.value) break;
+      await sleep(250);
+    }
+    await sleep(250);
+    const dialogState = await client.send("Runtime.evaluate", {
+      expression: `(() => {
+        const dialog = document.querySelector('[role="dialog"]');
+        const buttons = dialog
+          ? Array.from(dialog.querySelectorAll("button")).map(
+              (button) => button.textContent?.trim(),
+            )
+          : [];
+        const cancel = dialog
+          ? Array.from(dialog.querySelectorAll("button")).find(
+              (button) => button.textContent?.trim() === "Cancel",
+            )
+          : null;
+        cancel?.click();
+        return {
+          dialogOpened: Boolean(dialog),
+          title: dialog?.querySelector("h2")?.textContent?.trim() || null,
+          buttons,
+          cancelClicked: Boolean(cancel),
+        };
+      })()`,
+      returnByValue: true,
+    });
+    await sleep(250);
+    const closed = await client.send("Runtime.evaluate", {
+      expression: `!document.querySelector('[role="dialog"]')`,
+      returnByValue: true,
+    });
+    pages.push({
+      label: "clear-finished-confirmation",
+      buttonClicked: opened.result.value,
+      ...dialogState.result.value,
+      dialogClosed: closed.result.value,
+      console: activeCapture.console,
+      httpErrors: activeCapture.httpErrors,
+      networkFailures: activeCapture.networkFailures,
+    });
+  }
+
+  if (testDeleteFoodId) {
+    await visit(
+      "delete-food-confirmation-setup",
+      `/Admin/food/delete/${encodeURIComponent(testDeleteFoodId)}`,
+    );
+    activeCapture = { console: [], httpErrors: [], networkFailures: [] };
+    let deleteClicked = { result: { value: false } };
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      deleteClicked = await client.send("Runtime.evaluate", {
+        expression: `(() => {
+          const button = Array.from(document.querySelectorAll("button")).find(
+            (item) => item.textContent?.trim() === "Yes, Delete Food",
+          );
+          if (!button || button.disabled) return false;
+          button.click();
+          return true;
+        })()`,
+        returnByValue: true,
+      });
+      if (deleteClicked.result.value) break;
+      await sleep(250);
+    }
+    await sleep(250);
+    const deleteDialog = await client.send("Runtime.evaluate", {
+      expression: `(() => {
+        const dialog = document.querySelector('[role="dialog"]');
+        const buttons = dialog
+          ? Array.from(dialog.querySelectorAll("button")).map(
+              (button) => button.textContent?.trim(),
+            )
+          : [];
+        const yes = dialog
+          ? Array.from(dialog.querySelectorAll("button")).find(
+              (button) => button.textContent?.trim() === "Yes",
+            )
+          : null;
+        yes?.click();
+        return {
+          dialogOpened: Boolean(dialog),
+          title: dialog?.querySelector("h2")?.textContent?.trim() || null,
+          buttons,
+          yesClicked: Boolean(yes),
+        };
+      })()`,
+      returnByValue: true,
+    });
+    let returnedToAdmin = false;
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      const location = await client.send("Runtime.evaluate", {
+        expression: "location.pathname",
+        returnByValue: true,
+      });
+      if (location.result.value === "/Admin") {
+        returnedToAdmin = true;
+        break;
+      }
+      await sleep(250);
+    }
+    pages.push({
+      label: "delete-food-confirmation",
+      deleteClicked: deleteClicked.result.value,
+      ...deleteDialog.result.value,
+      returnedToAdmin,
+      console: activeCapture.console,
+      httpErrors: activeCapture.httpErrors,
+      networkFailures: activeCapture.networkFailures,
+    });
   }
 
   await client.send("Emulation.setDeviceMetricsOverride", {
