@@ -1,7 +1,10 @@
 {
-  "name": "personal_project",
+  "name": "restaurant-management-system",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": "24.x"
+  },
   "scripts": {
     "dev": "next dev --turbopack",
     "postinstall": "prisma generate",
@@ -11,6 +14,7 @@
     "security:migrate-passwords": "tsx scripts/migrate-password-hashes.ts --apply",
     "smoke": "node scripts/browser-health-check.mjs",
     "test:rate-limit": "tsx scripts/test-upstash-rate-limit.ts",
+    "test:rate-limit:required": "tsx scripts/test-upstash-rate-limit.ts --require-configured",
     "test:checkout": "tsx --conditions=react-server scripts/checkout-concurrency-test.ts",
     "test:authorization": "tsx --conditions=react-server scripts/authorization-boundary-test.ts",
     "test:data-integrity": "tsx --conditions=react-server scripts/data-integrity-test.ts",
@@ -21,6 +25,8 @@
     "test:admin-login-browser": "tsx --conditions=react-server scripts/admin-login-browser-test.ts",
     "test:database-outage": "tsx scripts/database-outage-probe.ts",
     "test": "tsx --test src/**/*.test.ts",
+    "verify": "node scripts/verify-release.mjs",
+    "licenses:report": "node scripts/dependency-license-report.mjs",
     "package:source": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-source.ps1",
     "start": "next start"
   },

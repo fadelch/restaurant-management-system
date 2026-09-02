@@ -1,0 +1,88 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  quality-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: restaurant_ci
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d restaurant_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      CI: "true"
+      NEXT_TELEMETRY_DISABLED: "1"
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/restaurant_ci?schema=public
+      AUTH_SECRET: ci-only-auth-secret-not-used-outside-github-actions-2026
+      SUPER_ADMIN_EMAIL: ci-super-admin@example.invalid
+      APP_BASE_URL: http://127.0.0.1:3104
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Use pinned Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Validate Prisma schema
+        run: npx prisma validate
+
+      - name: Apply migrations to disposable PostgreSQL
+        run: npx prisma migrate deploy
+
+      - name: Type-check
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Data-integrity tests
+        run: npm run test:data-integrity
+
+      - name: Financial-correctness tests
+        run: npm run test:financial
+
+      - name: Checkout and concurrency tests
+        run: npm run test:checkout
+
+      - name: Password-recovery tests
+        run: npm run test:password-recovery
+
+      - name: Customer-auth regression
+        run: npm run test:customer-auth
+
+      - name: Production build
+        run: npm run build
+
+      - name: Authorization boundaries
+        run: npm run test:authorization
+
+      - name: Report external Upstash verification status
+        run: npm run test:rate-limit

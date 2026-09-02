@@ -13,6 +13,8 @@
 # testing
 /coverage
 /.artifacts/
+/logs/
+*.log
 
 # next.js
 /.next/
@@ -20,10 +22,25 @@
 
 # production
 /build
+/dist/
 
 # misc
 .DS_Store
 *.pem
+*.key
+*.p12
+*.pfx
+*.tmp
+*.temp
+*.bak
+*.swp
+/.tmp/
+/tmp/
+/temp/
+/.cache/
+/.secrets/
+/secrets/
+credentials*.json
 
 # debug
 npm-debug.log*
