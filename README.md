@@ -51,6 +51,7 @@ orders, analytics, and audit records.
 - Shopping cart
 - Quantity management
 - Compact cash-on-delivery checkout
+- Configurable delivery/pickup availability with safe zero-zone handling
 - Payment status tracking
 - Damaged, spoiled, or unsafe food reporting and refund requests
 - Checkout and delivery information
@@ -130,6 +131,10 @@ DATABASE_URL="your-postgresql-database-url"
 AUTH_SECRET="your-long-random-authentication-secret"
 SUPER_ADMIN_EMAIL="your-super-admin-email"
 APP_BASE_URL="http://localhost:3000"
+RESTAURANT_NAME=""
+RESTAURANT_DELIVERY_ENABLED="false"
+RESTAURANT_PICKUP_ENABLED="false"
+RESTAURANT_COD_ENABLED="false"
 ```
 
 `.env.example` documents the remaining optional/local and required hosted
@@ -212,6 +217,8 @@ npm run test:data-integrity
 npm run test:financial
 npm run test:checkout
 npm run test:password-recovery
+npm run test:business-config
+npm run check:launch-config
 ```
 
 Runs unit and focused integration/security suites.
@@ -223,6 +230,14 @@ npm run verify
 Runs the complete non-cloud local release gate and stops on failure. See
 [the release process](docs/release.md) for staging, migration, promotion,
 rollback, versioning, and tagging requirements.
+
+Restaurant identity, ordering decisions, draft policies, and approvals are
+tracked in the [customer launch checklist](docs/customer-launch-checklist.md).
+The [restaurant configuration guide](docs/restaurant-configuration.md)
+identifies environment-backed identity and database-backed operational sources.
+The [privacy/data inventory](docs/privacy-data-inventory.md) documents actual
+data fields and account-removal behavior. Before staging acceptance,
+`npm run check:launch-config:required` must pass.
 
 ```powershell
 npm run package:source

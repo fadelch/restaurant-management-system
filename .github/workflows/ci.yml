@@ -78,6 +78,12 @@ jobs:
       - name: Customer-auth regression
         run: npm run test:customer-auth
 
+      - name: Business-configuration tests
+        run: npm run test:business-config
+
+      - name: Report customer launch configuration status
+        run: npm run check:launch-config
+
       - name: Production build
         run: npm run build
 

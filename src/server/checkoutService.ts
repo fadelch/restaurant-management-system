@@ -34,6 +34,8 @@ import {
 } from "@/lib/money";
 import { getCurrentUsdToLbpRate } from "@/lib/currencySettings";
 import { serializeForClient } from "@/lib/serialize";
+import { getRestaurantLaunchConfig } from "@/lib/restaurantConfig";
+import type { RestaurantOrderingConfig } from "@/types/restaurant";
 
 export const checkoutInputSchema = z.object({
   checkoutRequestId: z.string().uuid(),
@@ -93,6 +95,7 @@ async function findIdempotentOrder(
 export type CheckoutInput = z.input<typeof checkoutInputSchema>;
 type CheckoutRuntime = {
   restaurantStatus?: () => Promise<{ isOpen: boolean; message: string }>;
+  orderingConfig?: () => RestaurantOrderingConfig;
   afterStockUpdate?: () => Promise<void>;
 };
 
@@ -123,6 +126,19 @@ export async function checkoutForAuthenticatedUser(
       request: requestHash.slice(0, 12),
     });
     return serializeForClient(existingOrder);
+  }
+  const ordering = runtime.orderingConfig?.() || getRestaurantLaunchConfig().ordering;
+  if (!ordering.cashPaymentEnabled) {
+    throw new Error("Cash ordering is not available yet.");
+  }
+  if (!ordering.deliveryRulesApproved) {
+    throw new Error("Delivery and pickup rules require restaurant approval.");
+  }
+  if (data.fulfillmentType === "delivery" && !ordering.deliveryEnabled) {
+    throw new Error("Delivery ordering is not available.");
+  }
+  if (data.fulfillmentType === "pickup" && !ordering.pickupEnabled) {
+    throw new Error("Pickup ordering is not available.");
   }
   const restaurant = await (runtime.restaurantStatus || getRestaurantStatus)();
   if (!restaurant.isOpen) throw new Error(restaurant.message);
@@ -176,6 +192,15 @@ export async function checkoutForAuthenticatedUser(
       calculateLineTotal(line.unitPrice, line.item.cartQty),
     ),
   );
+  if (
+    data.fulfillmentType === "pickup" &&
+    ordering.pickupMinimumOrderUsd !== null &&
+    subtotal.lessThan(ordering.pickupMinimumOrderUsd)
+  ) {
+    throw new Error(
+      `The minimum pickup order is ${formatUsdForMessage(ordering.pickupMinimumOrderUsd)}.`,
+    );
+  }
   const [zone, requestedCoupon, exchangeRate] = await Promise.all([
     data.fulfillmentType === "delivery"
       ? prisma.deliveryZone.findUnique({
@@ -284,7 +309,10 @@ export async function checkoutForAuthenticatedUser(
               customerName: data.customerName,
               customerPhone: data.customerPhone,
               fulfillmentType: data.fulfillmentType,
-              paymentMethod: "Pay on Delivery",
+              paymentMethod:
+                data.fulfillmentType === "delivery"
+                  ? "Cash on Delivery"
+                  : "Cash on Pickup",
               paymentCode: null,
               paymentStatus: "pending",
               customerAddress:

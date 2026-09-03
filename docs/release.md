@@ -24,6 +24,7 @@ With a disposable PostgreSQL `DATABASE_URL` and a test-only `AUTH_SECRET`:
 npm ci
 npx prisma migrate deploy
 npm run verify
+npm run check:launch-config:required
 ```
 
 `npm run verify` runs Prisma validation/generation, TypeScript, lint, unit
@@ -32,6 +33,12 @@ production build, and authorization tests. It stops at the first failure.
 
 The local command deliberately does not claim that hosted services work. A
 local pass is not cloud verification.
+
+The optional check included in `npm run verify` reports unresolved customer
+configuration without blocking development. The required command must pass
+before staging/customer acceptance; it rejects missing identity fields, known
+user-facing placeholders, unapproved hours/delivery/policies/assets, missing
+delivery zones when delivery is enabled, and a missing USD/LBP rate.
 
 ## CI expectations
 

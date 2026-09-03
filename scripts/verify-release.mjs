@@ -15,6 +15,8 @@ const checks = [
     ["run", "test:password-recovery"],
   ],
   ["Customer-auth tests", "npm", ["run", "test:customer-auth"]],
+  ["Business-configuration tests", "npm", ["run", "test:business-config"]],
+  ["Customer launch configuration status", "npm", ["run", "check:launch-config"]],
   ["Production build", "npm", ["run", "build"]],
   ["Authorization tests", "npm", ["run", "test:authorization"]],
 ];

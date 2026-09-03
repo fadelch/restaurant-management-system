@@ -294,10 +294,10 @@ export default function CartPage() {
 
               <div className="mt-4 rounded-xl border border-yellow-500/20 bg-yellow-500/10 p-3">
                 <p className="text-sm font-black text-yellow-200">
-                  💵 Cash on delivery
+                  💵 Cash payment at handoff
                 </p>
                 <p className="mt-1 text-xs leading-5 text-yellow-100/70">
-                  No online payment or payment code required.
+                  Delivery or pickup availability is confirmed at checkout. Online card payment is not available.
                 </p>
               </div>
 

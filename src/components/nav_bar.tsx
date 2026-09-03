@@ -5,10 +5,10 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useCart } from "@/context/CartContext";
 import { getCurrentSession, logoutUser } from "@/server/authActions";
-import { getCheckoutSettings } from "@/server/checkoutSettings";
 import { useTranslation } from "react-i18next";
 import { showMessage } from "@/components/MessageProvider";
 import NotificationBell from "@/components/notifications/NotificationBell";
+import { useRestaurant } from "@/components/providers/RestaurantProvider";
 
 type Session = Awaited<ReturnType<typeof getCurrentSession>>;
 
@@ -17,15 +17,12 @@ export default function Nav_bar() {
   const pathname = usePathname();
   const { cartCount } = useCart();
   const { t, i18n } = useTranslation();
+  const { identity, status: restaurant } = useRestaurant();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [session, setSession] = useState<Session>(null);
   const [sessionLoaded, setSessionLoaded] = useState(false);
-  const [restaurant, setRestaurant] = useState<{
-    isOpen: boolean;
-    message: string;
-  } | null>(null);
   const labels = {
-    brand: t("nav.brand"),
+    brand: identity.name,
     home: t("nav.home"),
     menu: t("nav.menu"),
     admin: t("nav.admin"),
@@ -60,12 +57,6 @@ export default function Nav_bar() {
       active = false;
     };
   }, [pathname]);
-
-  useEffect(() => {
-    getCheckoutSettings()
-      .then((data) => setRestaurant(data.restaurant))
-      .catch(() => setRestaurant(null));
-  }, []);
 
   useEffect(() => {
     setMobileMenuOpen(false);
@@ -182,8 +173,8 @@ export default function Nav_bar() {
             className="flex min-w-0 items-center gap-2.5 transition hover:opacity-90 sm:gap-3"
           >
             <Image
-              src="/Logo.png"
-              alt="Restaurant logo"
+              src={identity.logoUrl}
+              alt={`${identity.name} logo`}
               width={56}
               height={56}
               className="h-11 w-11 shrink-0 rounded-xl object-cover ring-1 ring-red-500/30 sm:h-14 sm:w-14"

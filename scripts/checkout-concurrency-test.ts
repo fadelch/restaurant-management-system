@@ -55,6 +55,14 @@ async function run() {
   const results: Record<string, unknown> = {};
   const runtime = {
     restaurantStatus: async () => ({ isOpen: true, message: "Open" }),
+    orderingConfig: () => ({
+      deliveryEnabled: true,
+      pickupEnabled: true,
+      cashPaymentEnabled: true,
+      deliveryRulesApproved: true,
+      pickupInstructions: "Test pickup instructions",
+      pickupMinimumOrderUsd: "0.00",
+    }),
   };
 
   async function cleanupFixtures(prefixToClean: string) {
