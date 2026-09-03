@@ -9,6 +9,7 @@ import { getCustomerOrderById } from "@/server/getCustomerOrders";
 import type { CustomerOrder } from "@/types";
 import { normalizeOptionalIngredients } from "@/lib/foodOptions";
 import { multiplyUsd } from "@/lib/currency";
+import { getCurrentSession } from "@/server/authActions";
 
 export default function OrderConfirmationPage() {
   const params = useParams<{ id: string }>();
@@ -20,15 +21,15 @@ export default function OrderConfirmationPage() {
 
   useEffect(() => {
     const loadOrder = async () => {
-      const userEmail = sessionStorage.getItem("userEmail");
+      const session = await getCurrentSession();
 
-      if (!userEmail) {
-        router.replace("/login");
+      if (!session?.email) {
+        router.replace(`/login?next=/order-confirmation/${orderId}`);
         return;
       }
 
       try {
-        const data = await getCustomerOrderById(orderId, userEmail);
+        const data = await getCustomerOrderById(orderId, session.email);
 
         if (!data) {
           showMessage("Order not found.");

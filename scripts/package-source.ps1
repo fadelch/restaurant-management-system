@@ -20,9 +20,19 @@ if (Test-Path -LiteralPath $resolvedOutput) {
   throw "The package output already exists. Choose a new output path."
 }
 
-$trackedSecretEnvironments = @(
-  & git -C $repositoryRoot ls-files -- ".env" ".env.local" ".env.production" ".env.development" ".env.staging"
+$workingTree = @(
+  & git -C $repositoryRoot status --porcelain=v1 --untracked-files=all
 )
+if ($LASTEXITCODE -ne 0) {
+  throw "Unable to inspect the Git working tree."
+}
+if ($workingTree.Count -gt 0) {
+  throw "The Git working tree must be clean before creating a release package."
+}
+
+$trackedSecretEnvironments = @(
+  & git -C $repositoryRoot ls-files -- ".env*"
+) | Where-Object { $_ -ne ".env.example" }
 if ($LASTEXITCODE -ne 0) {
   throw "Unable to inspect Git tracking."
 }
@@ -30,8 +40,20 @@ if ($trackedSecretEnvironments.Count -gt 0) {
   throw "A secret environment file is tracked by Git. Packaging was stopped."
 }
 
+$trackedSecretFiles = @(
+  & git -C $repositoryRoot ls-files
+) | Where-Object {
+  $normalized = $_.Replace("\", "/")
+  $normalized -match "(^|/)(\.secrets|secrets)(/|$)" -or
+  $normalized -match "(^|/)credentials[^/]*\.json$" -or
+  $normalized -match "\.(pem|key|p12|pfx)$"
+}
+if ($trackedSecretFiles.Count -gt 0) {
+  throw "A generated credential/secret file is tracked by Git. Packaging was stopped."
+}
+
 $candidates = @(
-  & git -C $repositoryRoot ls-files --cached --others --exclude-standard
+  & git -C $repositoryRoot ls-files --cached
 )
 if ($LASTEXITCODE -ne 0) {
   throw "Unable to list source files."
@@ -39,7 +61,10 @@ if ($LASTEXITCODE -ne 0) {
 
 $approvedFiles = foreach ($candidate in $candidates) {
   $normalized = $candidate.Replace("\", "/")
-  if ($normalized -match "(^|/)(node_modules|\.next|\.git|coverage|temp|tmp)(/|$)") {
+  if (
+    $normalized -match
+    "(^|/)(node_modules|\.next|\.git|coverage|logs?|temp|tmp|\.tmp|\.cache|\.artifacts|\.secrets|secrets|out|build|dist)(/|$)"
+  ) {
     continue
   }
   if (
@@ -48,7 +73,13 @@ $approvedFiles = foreach ($candidate in $candidates) {
   ) {
     continue
   }
-  if ($normalized -match "(\.log|\.tmp|\.temp|~)$") {
+  if ($normalized -match "(\.log|\.tmp|\.temp|\.bak|\.swp|~)$") {
+    continue
+  }
+  if ($normalized -match "\.(pem|key|p12|pfx)$") {
+    continue
+  }
+  if ($normalized -match "(^|/)credentials[^/]*\.json$") {
     continue
   }
   $normalized
@@ -56,6 +87,22 @@ $approvedFiles = foreach ($candidate in $candidates) {
 
 if ($approvedFiles.Count -eq 0) {
   throw "No source files were selected for packaging."
+}
+
+$requiredFiles = @(
+  ".env.example",
+  "README.md",
+  "package.json",
+  "package-lock.json",
+  "prisma/schema.prisma"
+)
+foreach ($requiredFile in $requiredFiles) {
+  if ($approvedFiles -notcontains $requiredFile) {
+    throw "Required release file is missing from the package: $requiredFile"
+  }
+}
+if (-not ($approvedFiles | Where-Object { $_ -match "^prisma/migrations/.+/migration\.sql$" })) {
+  throw "No Prisma migrations were selected for the release package."
 }
 
 $outputDirectory = Split-Path -Parent $resolvedOutput

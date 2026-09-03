@@ -43,7 +43,7 @@ export async function insert_order(data: { userId: string; status: string }) {
         status,
         total: 0,
         exchangeRateUsed,
-        paymentMethod: "Pay on Delivery",
+        paymentMethod: "Cash on Delivery",
         paymentStatus:
           status === "done"
             ? "done"

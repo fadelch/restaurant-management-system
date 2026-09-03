@@ -10,23 +10,22 @@ import {
 } from "@/lib/validation";
 import {
   enforceRateLimit,
+  RateLimitExceededError,
+  RateLimitUnavailableError,
   requestIpAddress,
 } from "@/lib/rateLimit";
+import {
+  SignupInputError,
+  SignupUnavailableError,
+} from "@/lib/signupErrors";
 
-export async function signupUser(data: {
-  name: string;
-  email: string;
-  password: string;
-  confirm_password?: string;
-  confirm_pas?: string;
-}) {
+export async function signupUser(data: unknown) {
   try {
     await enforceRateLimit({
       policy: "signup-ip",
       identifier: await requestIpAddress(),
       failurePolicy: "closed",
     });
-    const confirmPassword = data.confirm_password || data.confirm_pas || "";
     const parsed = z
       .object({
         name: z
@@ -36,17 +35,19 @@ export async function signupUser(data: {
           .max(100),
         email: emailSchema.transform((value) => value.toLowerCase()),
         password: passwordSchema,
+        confirm_password: z.string().max(72).optional(),
+        confirm_pas: z.string().max(72).optional(),
       })
-      .safeParse({
-        name: data.name,
-        email: data.email,
-        password: data.password,
-      });
-    if (!parsed.success) throw new Error(validationMessage(parsed.error));
+      .safeParse(data);
+    if (!parsed.success) {
+      throw new SignupInputError(validationMessage(parsed.error));
+    }
     const { name, email, password } = parsed.data;
+    const confirmPassword =
+      parsed.data.confirm_password || parsed.data.confirm_pas || "";
 
     if (password !== confirmPassword) {
-      throw new Error("Passwords do not match.");
+      throw new SignupInputError("Passwords do not match.");
     }
 
     const existingUser = await prisma.user.findUnique({
@@ -56,7 +57,7 @@ export async function signupUser(data: {
     });
 
     if (existingUser) {
-      throw new Error("Email already exists.");
+      throw new SignupInputError("Email already exists.");
     }
 
     const passwordHash = await hash(password, 12);
@@ -76,7 +77,28 @@ export async function signupUser(data: {
       isAdmin: user.isAdmin,
     };
   } catch (err) {
-    console.log("Signup error:", err);
-    throw err;
+    if (
+      err instanceof SignupInputError ||
+      err instanceof RateLimitExceededError ||
+      err instanceof RateLimitUnavailableError
+    ) {
+      throw err;
+    }
+    if (
+      typeof err === "object" &&
+      err !== null &&
+      "code" in err &&
+      err.code === "P2002"
+    ) {
+      throw new SignupInputError("Email already exists.");
+    }
+    console.error("Signup operation failed.", {
+      errorType: err instanceof Error ? err.constructor.name : "UnknownError",
+      errorCode:
+        typeof err === "object" && err !== null && "code" in err
+          ? String(err.code)
+          : null,
+    });
+    throw new SignupUnavailableError();
   }
 }

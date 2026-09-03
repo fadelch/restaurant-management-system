@@ -44,12 +44,14 @@ orders, analytics, and audit records.
 
 - Responsive mobile and desktop design
 - User registration and login
+- Secure password recovery with expiring, one-time reset links
 - Secure cookie-based sessions
 - Restaurant menu and food categories
 - Food search and filtering
 - Shopping cart
 - Quantity management
 - Compact cash-on-delivery checkout
+- Configurable delivery/pickup availability with safe zero-zone handling
 - Payment status tracking
 - Damaged, spoiled, or unsafe food reporting and refund requests
 - Checkout and delivery information
@@ -80,6 +82,9 @@ orders, analytics, and audit records.
 - PostgreSQL
 - bcrypt
 - Zod
+- Sentry
+- Upstash Redis rate limiting
+- Vercel Blob
 
 ## Project Structure
 
@@ -125,7 +130,18 @@ Copy `.env.example` to `.env` and enter your own configuration:
 DATABASE_URL="your-postgresql-database-url"
 AUTH_SECRET="your-long-random-authentication-secret"
 SUPER_ADMIN_EMAIL="your-super-admin-email"
+APP_BASE_URL="http://localhost:3000"
+RESTAURANT_NAME=""
+RESTAURANT_DELIVERY_ENABLED="false"
+RESTAURANT_PICKUP_ENABLED="false"
+RESTAURANT_COD_ENABLED="false"
 ```
+
+`.env.example` documents the remaining optional/local and required hosted
+service variables. Do not put real credentials in `.env.example`. Local
+development may omit cloud-service credentials; staging and production must
+configure the required Neon/PostgreSQL, Upstash, Resend, Sentry, and Blob
+values described in [the deployment guide](docs/deployment.md).
 
 Generate the Prisma client:
 
@@ -139,6 +155,9 @@ Apply the database migrations:
 npx prisma migrate deploy
 ```
 
+Use a disposable PostgreSQL database for tests. Never run integration tests
+against production data.
+
 Run the development server:
 
 ```bash
@@ -150,6 +169,27 @@ Open the application in your browser:
 ```text
 http://localhost:3000
 ```
+
+## Before Publishing — Required Configuration Reminder
+
+Do not publish the restaurant application until these items are completed:
+
+- [ ] Set `APP_BASE_URL` to the final hosted HTTPS address, not localhost.
+- [ ] Create a Resend account and verify the restaurant-owned sending domain
+      with the required SPF and DKIM DNS records.
+- [ ] Create a Resend API key with **Sending access** and store it as
+      `RESEND_API_KEY` in the hosting provider's environment variables.
+- [ ] Set `EMAIL_FROM` to an address on the verified restaurant domain, for
+      example `Restaurant Name <accounts@yourrestaurant.com>`.
+- [ ] Configure `UPSTASH_REDIS_REST_URL` and
+      `UPSTASH_REDIS_REST_TOKEN` so production authentication, password
+      recovery, checkout, and protected mutations do not fail closed.
+- [ ] Add all production secrets through the hosting dashboard. Never commit
+      them to Git or place them in client-side variables.
+- [ ] Redeploy after adding or changing environment variables.
+- [ ] Test password reset with a real active customer account, confirm the
+      link uses the hosted domain, and verify delivery in the Resend logs and
+      the customer's inbox/spam folder.
 
 ## Available Commands
 
@@ -171,11 +211,50 @@ npm run start
 
 Starts the production server after building.
 
+```bash
+npm test
+npm run test:data-integrity
+npm run test:financial
+npm run test:checkout
+npm run test:password-recovery
+npm run test:business-config
+npm run check:launch-config
+```
+
+Runs unit and focused integration/security suites.
+
+```bash
+npm run verify
+```
+
+Runs the complete non-cloud local release gate and stops on failure. See
+[the release process](docs/release.md) for staging, migration, promotion,
+rollback, versioning, and tagging requirements.
+
+Restaurant identity, ordering decisions, draft policies, and approvals are
+tracked in the [customer launch checklist](docs/customer-launch-checklist.md).
+The [restaurant configuration guide](docs/restaurant-configuration.md)
+identifies environment-backed identity and database-backed operational sources.
+The [privacy/data inventory](docs/privacy-data-inventory.md) documents actual
+data fields and account-removal behavior. Before staging acceptance,
+`npm run check:launch-config:required` must pass.
+
+```powershell
+npm run package:source
+```
+
+Creates a secret-free source archive from a clean Git working tree.
+
 ## Security
 
 Private environment files are excluded from Git through `.gitignore`.
 Never commit database passwords, authentication secrets, tokens, or
 production credentials.
+
+Before commercial use, review [asset rights](docs/asset-licenses.md),
+[dependency licenses](docs/dependency-licenses.md), and the
+[draft ownership/support checklist](docs/software-terms-checklist.md). This
+private repository currently has no project-level license grant.
 
 ## What I Learned
 
@@ -195,13 +274,10 @@ While building this project, I practiced:
 ## Future Improvements
 
 - Email verification
-- Password reset
 - Online payment provider integration
 - Real-time order notifications
 - Customer reviews and ratings
 - Saved customer addresses
-- Automated testing
-- Cloud image storage
 - Production monitoring
 
 ## Author

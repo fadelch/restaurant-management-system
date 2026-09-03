@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { showMessage } from "@/components/MessageProvider";
 import { useCart } from "@/context/CartContext";
 import { useCurrency } from "@/components/providers/CurrencyProvider";
@@ -37,9 +38,14 @@ export default function CartCheckoutDialog({
     fingerprint: string;
     requestId: string;
   } | null>(null);
+  const closeButton = useRef<HTMLButtonElement>(null);
   const selectedZone = settings?.zones.find(
     (zone) => zone.id === deliveryZoneId,
   );
+  const fulfillmentAvailable =
+    fulfillmentType === "delivery"
+      ? Boolean(settings?.ordering.deliveryAvailable)
+      : Boolean(settings?.ordering.pickupAvailable);
   const totalPrice = formatUsdWithLbp(cartTotal);
   const inputClass =
     "mt-1.5 w-full rounded-xl border border-white/15 bg-black/50 p-3.5 text-base text-white outline-none transition placeholder:text-gray-600 focus:border-red-500 focus:ring-2 focus:ring-red-700/40";
@@ -50,6 +56,8 @@ export default function CartCheckoutDialog({
       const next = await getCheckoutSettings();
       setSettings(next);
       if (!deliveryZoneId && next.zones[0]) setDeliveryZoneId(next.zones[0].id);
+      if (next.ordering.deliveryAvailable) setFulfillmentType("delivery");
+      else if (next.ordering.pickupAvailable) setFulfillmentType("pickup");
     } catch (error) {
       setSettingsError(
         error instanceof Error
@@ -65,8 +73,10 @@ export default function CartCheckoutDialog({
 
   useEffect(() => {
     if (!open) return;
+    const previouslyFocused = document.activeElement as HTMLElement | null;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    closeButton.current?.focus();
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape" && !purchasing) onClose();
     };
@@ -74,6 +84,7 @@ export default function CartCheckoutDialog({
     return () => {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", closeOnEscape);
+      previouslyFocused?.focus();
     };
   }, [onClose, open, purchasing]);
 
@@ -98,6 +109,12 @@ export default function CartCheckoutDialog({
     if (!cartItems.length) return showMessage("Your cart is empty.");
     if (!customerName.trim()) return showMessage("Enter the customer name.");
     if (!customerPhone.trim()) return showMessage("Enter a phone number.");
+    if (!settings?.ordering.cashPaymentEnabled) {
+      return showMessage("Cash ordering is not available yet.");
+    }
+    if (!fulfillmentAvailable) {
+      return showMessage("The selected order method is not available.");
+    }
     if (fulfillmentType === "delivery" && !deliveryZoneId) {
       return showMessage("Select your delivery area.");
     }
@@ -180,10 +197,11 @@ export default function CartCheckoutDialog({
               Final step
             </p>
             <h2 id="checkout-title" className="mt-1 text-2xl font-black sm:text-3xl">
-              Delivery & contact
+              Order & contact
             </h2>
           </div>
           <button
+            ref={closeButton}
             type="button"
             onClick={onClose}
             disabled={purchasing}
@@ -257,7 +275,13 @@ export default function CartCheckoutDialog({
                   Receive your order
                 </legend>
                 <div className="grid grid-cols-2 gap-2">
-                  {(["delivery", "pickup"] as const).map((option) => (
+                  {(["delivery", "pickup"] as const)
+                    .filter((option) =>
+                      option === "delivery"
+                        ? settings?.ordering.deliveryAvailable
+                        : settings?.ordering.pickupAvailable,
+                    )
+                    .map((option) => (
                     <button
                       key={option}
                       type="button"
@@ -268,6 +292,13 @@ export default function CartCheckoutDialog({
                     </button>
                   ))}
                 </div>
+                {settings &&
+                !settings.ordering.deliveryAvailable &&
+                !settings.ordering.pickupAvailable ? (
+                  <p className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs font-bold text-amber-200">
+                    Ordering is unavailable until the restaurant completes its delivery or pickup configuration.
+                  </p>
+                ) : null}
               </fieldset>
             </section>
 
@@ -327,16 +358,26 @@ export default function CartCheckoutDialog({
                 </>
               ) : (
                 <div className="rounded-xl border border-blue-500/20 bg-blue-500/10 p-4 text-sm leading-6 text-blue-200">
-                  Your order will be prepared for restaurant pickup. No address
-                  is required.
+                  <p>Your order will be prepared for restaurant pickup. No address is required.</p>
+                  {settings?.ordering.pickupInstructions ? (
+                    <p className="mt-2 font-bold">{settings.ordering.pickupInstructions}</p>
+                  ) : null}
+                  {settings?.ordering.pickupMinimumOrderUsd !== null &&
+                  settings?.ordering.pickupMinimumOrderUsd !== undefined ? (
+                    <p className="mt-2 text-xs">
+                      Minimum pickup order: ${Number(settings.ordering.pickupMinimumOrderUsd).toFixed(2)}
+                    </p>
+                  ) : null}
                 </div>
               )}
 
               <div className="rounded-xl border border-yellow-500/20 bg-yellow-500/10 p-4">
-                <p className="font-black text-yellow-200">Cash on delivery only</p>
+                <p className="font-black text-yellow-200">
+                  {fulfillmentType === "delivery" ? "Cash on delivery" : "Cash on pickup"}
+                </p>
                 <p className="mt-1 text-xs leading-5 text-yellow-100/70">
                   Payment starts as Pending and becomes Done after the order is
-                  received and cash is collected.
+                  handed over and cash is collected. Online card payment is not available.
                 </p>
               </div>
             </section>
@@ -388,18 +429,28 @@ export default function CartCheckoutDialog({
               </label>
             </div>
           </details>
+          <p className="mt-4 text-xs leading-5 text-gray-400">
+            Before ordering, review our <Link href="/policies/refunds" className="font-bold text-red-300 hover:underline">refund and cancellation policy</Link> and <Link href="/policies/allergy" className="font-bold text-red-300 hover:underline">allergy notice</Link>.
+          </p>
         </div>
 
         <footer className="grid gap-3 border-t border-white/10 bg-[#1d0303] p-4 sm:grid-cols-[1fr_auto] sm:p-5">
           <button
             type="submit"
-            disabled={purchasing || !settings?.restaurant.isOpen}
+            disabled={
+              purchasing ||
+              !settings?.restaurant.isOpen ||
+              !settings.ordering.cashPaymentEnabled ||
+              !fulfillmentAvailable
+            }
             className="rounded-xl bg-red-600 px-6 py-3.5 font-black text-white hover:bg-red-700 disabled:opacity-50"
           >
             {purchasing
               ? "Placing order..."
               : settings?.restaurant.isOpen
-                ? "Place cash-on-delivery order"
+                ? fulfillmentType === "delivery"
+                  ? "Place cash-on-delivery order"
+                  : "Place cash-on-pickup order"
                 : "Restaurant closed"}
           </button>
           <button

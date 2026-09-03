@@ -9,6 +9,7 @@ import {
 } from "@/server/adminData";
 import AdminPageControls from "@/components/AdminPageControls";
 import { showMessage } from "@/components/MessageProvider";
+import { useConfirmDialog } from "@/components/ConfirmDialog";
 import { useCurrency } from "@/components/providers/CurrencyProvider";
 import type { AdminOrder } from "@/types";
 import { normalizeOptionalIngredients } from "@/lib/foodOptions";
@@ -37,6 +38,7 @@ function normalizeStatus(status: string) {
 
 export default function OrderItemsTable() {
   const { formatUsdWithLbp } = useCurrency();
+  const { confirm: askConfirmation, dialog } = useConfirmDialog();
   const [items, setItems] = useState<FinishedOrderItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -103,9 +105,11 @@ export default function OrderItemsTable() {
   }, [fetchOrderItems]);
 
   const clearList = async () => {
-    const confirmed = window.confirm(
-      "Clear all finished order items from this admin list? Order history, refunds, analytics, and food safety reports will be kept.",
-    );
+    const confirmed = await askConfirmation({
+      title: "Clear finished list?",
+      message:
+        "Clear all finished order items from this admin list? Order history, refunds, analytics, and food safety reports will be kept.",
+    });
     if (!confirmed) return;
 
     try {
@@ -146,7 +150,8 @@ export default function OrderItemsTable() {
   };
 
   return (
-    <AnimatedSection variant="fade-up" delay={300}>
+    <>
+      <AnimatedSection variant="fade-up" delay={300}>
       <div className="rounded-2xl border border-red-900/40 bg-[#1a0000] p-5 shadow-2xl">
         <div className="mb-6 flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
           <div>
@@ -357,6 +362,8 @@ export default function OrderItemsTable() {
           </table>
         </div>
       </div>
-    </AnimatedSection>
+      </AnimatedSection>
+      {dialog}
+    </>
   );
 }

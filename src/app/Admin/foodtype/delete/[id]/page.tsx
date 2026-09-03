@@ -5,8 +5,10 @@ import { useParams, useRouter } from "next/navigation";
 import { getFoodTypeById } from "@/server/getFoodTypeById";
 import { deleteFoodType } from "@/server/deleteFoodType";
 import { showMessage } from "@/components/MessageProvider";
+import { useConfirmDialog } from "@/components/ConfirmDialog";
 
 export default function DeleteFoodTypePage() {
+  const { confirm: askConfirmation, dialog } = useConfirmDialog();
   const router = useRouter();
   const params = useParams<{ id: string }>();
 
@@ -40,6 +42,12 @@ export default function DeleteFoodTypePage() {
   }, [id, router]);
 
   const handleDelete = async () => {
+    const confirmed = await askConfirmation({
+      title: "Delete food type?",
+      message: `Permanently delete ${name || "this food type"}?`,
+    });
+    if (!confirmed) return;
+
     try {
       setLoading(true);
 
@@ -59,7 +67,8 @@ export default function DeleteFoodTypePage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#120000] px-6 py-10 text-white">
+    <>
+      <div className="min-h-screen bg-[#120000] px-6 py-10 text-white">
       <div className="mx-auto max-w-xl rounded-3xl border border-red-900/50 bg-[#1a0000] p-8 shadow-2xl">
         <p className="text-sm font-bold uppercase tracking-[0.3em] text-red-400">
           Admin Delete
@@ -99,6 +108,8 @@ export default function DeleteFoodTypePage() {
           </button>
         </div>
       </div>
-    </div>
+      </div>
+      {dialog}
+    </>
   );
 }

@@ -8,6 +8,7 @@ import {
   getNotificationSummaryForCustomer,
   getOrderForCustomer,
   getOrdersForCustomer,
+  markAllNotificationsReadForCustomer,
   markNotificationReadForCustomer,
 } from "../src/server/customerAccessService";
 
@@ -25,11 +26,11 @@ function requiredSecret() {
   return secret;
 }
 
-function sessionToken(userId: string) {
+function sessionToken(userId: string, expiresAt = Date.now() + 10 * 60 * 1000) {
   const encoded = Buffer.from(
     JSON.stringify({
       userId,
-      expiresAt: Date.now() + 10 * 60 * 1000,
+      expiresAt,
     }),
   ).toString("base64url");
   const signature = createHmac("sha256", requiredSecret())
@@ -55,8 +56,13 @@ async function waitForServer(process: ChildProcess) {
   throw new Error("Timed out waiting for the production server.");
 }
 
-async function request(pathname: string, token?: string) {
+async function request(
+  pathname: string,
+  token?: string,
+  method: "GET" | "POST" = "GET",
+) {
   return fetch(`${baseUrl}${pathname}`, {
+    method,
     redirect: "manual",
     headers: token ? { cookie: `${sessionCookie}=${token}` } : undefined,
   });
@@ -84,7 +90,7 @@ async function main() {
   const suffix = randomUUID();
   const password = await hash(randomUUID(), 12);
   const createdIds: string[] = [];
-  let announcementId: string | undefined;
+  const announcementIds: string[] = [];
   let server: ChildProcess | undefined;
 
   try {
@@ -142,17 +148,54 @@ async function main() {
         message: "Temporary ownership boundary fixture",
         published: true,
         notifications: {
+          create: [
+            {
+              userId: otherCustomer.id,
+              title: "Authorization probe",
+              message: "Temporary ownership boundary fixture",
+            },
+            {
+              userId: customer.id,
+              title: "Authorization probe own notification",
+              message: "Temporary own-notification fixture",
+            },
+          ],
+        },
+      },
+      select: {
+        id: true,
+        notifications: { select: { id: true, userId: true } },
+      },
+    });
+    const secondAnnouncement = await prisma.announcement.create({
+      data: {
+        title: "Authorization probe mark all",
+        message: "Temporary mark-all fixture",
+        published: true,
+        notifications: {
           create: {
-            userId: otherCustomer.id,
-            title: "Authorization probe",
-            message: "Temporary ownership boundary fixture",
+            userId: customer.id,
+            title: "Authorization probe second own notification",
+            message: "Temporary mark-all fixture",
           },
         },
       },
-      select: { id: true, notifications: { select: { id: true } } },
+      select: {
+        id: true,
+        notifications: { select: { id: true, userId: true } },
+      },
     });
-    announcementId = announcement.id;
-    const victimNotificationId = announcement.notifications[0]?.id;
+    announcementIds.push(announcement.id, secondAnnouncement.id);
+    const allNotifications = [
+      ...announcement.notifications,
+      ...secondAnnouncement.notifications,
+    ];
+    const victimNotificationId = allNotifications.find(
+      (notification) => notification.userId === otherCustomer.id,
+    )?.id;
+    const ownNotificationIds = allNotifications
+      .filter((notification) => notification.userId === customer.id)
+      .map((notification) => notification.id);
     if (!victimNotificationId) {
       throw new Error("Could not create the notification ownership fixture.");
     }
@@ -176,6 +219,15 @@ async function main() {
     const victimNotification = await prisma.notification.findUnique({
       where: { id: victimNotificationId },
       select: { read: true },
+    });
+    await markNotificationReadForCustomer(customer.id, ownNotificationIds[0]);
+    const ownRead = await prisma.notification.findUnique({
+      where: { id: ownNotificationIds[0] },
+      select: { read: true },
+    });
+    await markAllNotificationsReadForCustomer(customer.id);
+    const ownUnreadAfterMarkAll = await prisma.notification.count({
+      where: { id: { in: ownNotificationIds }, read: false },
     });
 
     const superAdminEmail = process.env.SUPER_ADMIN_EMAIL?.trim();
@@ -203,6 +255,10 @@ async function main() {
 
     const unauthenticated = await request("/Admin");
     const tampered = await request("/Admin", `${sessionToken(customer.id)}x`);
+    const expired = await request(
+      "/Admin",
+      sessionToken(customer.id, Date.now() - 1_000),
+    );
     const customerResponse = await request("/Admin", sessionToken(customer.id));
     const bannedResponse = await request(
       "/Admin",
@@ -213,6 +269,21 @@ async function main() {
       "/DeleteUser",
       sessionToken(admin.id),
     );
+    const unauthenticatedSentry = await request(
+      "/api/admin/sentry-test",
+      undefined,
+      "POST",
+    );
+    const customerSentry = await request(
+      "/api/admin/sentry-test",
+      sessionToken(customer.id),
+      "POST",
+    );
+    const adminSentry = await request(
+      "/api/admin/sentry-test",
+      sessionToken(admin.id),
+      "POST",
+    );
     const superResponse =
       superAdmin && !superAdmin.isBanned
         ? await request("/DeleteUser", sessionToken(superAdmin.id))
@@ -221,10 +292,14 @@ async function main() {
     const results = {
       unauthenticatedAdminDenied: redirectedToLogin(unauthenticated),
       tamperedSessionDenied: redirectedToLogin(tampered),
+      expiredSessionDenied: redirectedToLogin(expired),
       customerAdminDenied: redirectedToLogin(customerResponse),
       bannedAdminDenied: redirectedToLogin(bannedResponse),
       adminAllowed: adminResponse.status === 200,
       adminSuperRouteDenied: redirectedToLogin(adminSuperResponse),
+      unauthenticatedSentryDenied: unauthenticatedSentry.status === 401,
+      customerSentryDenied: customerSentry.status === 403,
+      productionAdminRateLimitFailsClosed: adminSentry.status === 503,
       foreignOrderDetailDenied: otherOrder === null,
       foreignOrderListExcluded: !customerOrders.some(
         (order) => order.id === victimOrder.id,
@@ -234,6 +309,8 @@ async function main() {
       ),
       foreignNotificationWriteDenied:
         foreignNotificationWriteDenied && victimNotification?.read === false,
+      ownNotificationReadAllowed: ownRead?.read === true,
+      ownNotificationsMarkAllAllowed: ownUnreadAfterMarkAll === 0,
       superAdminAllowed:
         superResponse === null ? "NOT TESTABLE" : superResponse.status === 200,
     };
@@ -251,8 +328,10 @@ async function main() {
     if (!requiredPassed) process.exitCode = 1;
   } finally {
     if (server) await stopServer(server);
-    if (announcementId) {
-      await prisma.announcement.deleteMany({ where: { id: announcementId } });
+    if (announcementIds.length > 0) {
+      await prisma.announcement.deleteMany({
+        where: { id: { in: announcementIds } },
+      });
     }
     if (createdIds.length > 0) {
       const fixtureOrders = await prisma.order.findMany({

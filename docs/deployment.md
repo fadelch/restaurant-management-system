@@ -11,6 +11,9 @@ production database.
 | `DATABASE_URL` | Neon PostgreSQL connection used by Prisma | Server | Required |
 | `AUTH_SECRET` | Signs authentication sessions and hashes rate-limit identifiers | Server | Required; at least 32 random characters |
 | `SUPER_ADMIN_EMAIL` | Current solo-owner Super Admin identity | Server | Required for the current authorization model |
+| `APP_BASE_URL` | Public origin used in password-reset links | Server | Required; use the hosted HTTPS origin |
+| `RESEND_API_KEY` | Sends password-recovery email | Server secret | Required for customer password recovery |
+| `EMAIL_FROM` | Verified restaurant sender identity | Server | Required; must use a Resend-verified domain |
 | `UPSTASH_REDIS_REST_URL` | Shared Upstash Redis endpoint | Server | Required in Preview/Production |
 | `UPSTASH_REDIS_REST_TOKEN` | Upstash Redis credential | Server | Required in Preview/Production |
 | `RATE_LIMIT_ANALYTICS` | Enables Upstash rate-limit analytics when `true` | Server | Optional; defaults to `false` |
@@ -24,10 +27,19 @@ production database.
 | `SENTRY_PROJECT` | Sentry project slug for source maps | Build | Required with the auth token |
 | `BLOB_READ_WRITE_TOKEN` | Vercel Blob upload/delete credential | Server | Required in Preview/Production |
 
+Restaurant identity and business-decision variables are documented in
+`.env.example`. `RESTAURANT_NAME`, logo, phone, email, address, map URL,
+timezone, metadata, delivery/pickup/COD decisions, pickup instructions, and
+pickup minimum belong in the deployment environment. Opening hours, delivery
+zones/fees/minimums, and the USD/LBP rate remain database-backed.
+
 `NODE_ENV`, `VERCEL_ENV`, and `NEXT_RUNTIME` are platform/runtime variables and
 must not be copied into `.env.example`. `SMOKE_SESSION_COOKIE`,
 `SMOKE_USER_EMAIL`, and `SMOKE_EXTRA_ROUTES` are optional local browser-check
 inputs, not application deployment variables.
+
+Set the Vercel project runtime to Node.js 24.x. The repository pins the same
+major through `package.json` and `.nvmrc`.
 
 ## Prepare staging services
 
@@ -52,6 +64,12 @@ inputs, not application deployment variables.
 
 7. Set `SUPER_ADMIN_EMAIL` to the verified owner account that will administer
    staging.
+8. Verify a restaurant-owned domain in Resend, configure a staging-restricted
+   sending key and sender, and set `APP_BASE_URL` to the Preview origin used for
+   the recovery test. Do not reuse production mail credentials in Preview.
+9. Complete `docs/customer-launch-checklist.md`, record real owner/legal
+   approvals, and run `npm run check:launch-config:required`. It must return
+   `CUSTOMER LAUNCH CONFIGURATION: PASS`; do not use demo values to force it.
 
 ## Deploy Preview
 

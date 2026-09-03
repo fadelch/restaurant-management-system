@@ -57,7 +57,27 @@ async function recoveryChild() {
   }
 }
 
-function runChild(mode: "outage" | "recovery", databaseUrl: string) {
+async function signupOutageChild() {
+  const { signupUser } = await import("../src/server/signupUser");
+  let sanitized = false;
+  try {
+    await signupUser({
+      name: "Database outage probe",
+      email: `database-outage-${randomUUID()}@example.invalid`,
+      password: "Database!Outage9",
+      confirm_password: "Database!Outage9",
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    sanitized =
+      message === "Unable to create an account right now. Please try again." &&
+      !/prisma|postgres|database_url|127\.0\.0\.1/i.test(message);
+  }
+  console.log(JSON.stringify({ status: sanitized ? "PASS" : "FAIL" }));
+  if (!sanitized) process.exitCode = 1;
+}
+
+function runChild(mode: "outage" | "recovery" | "signup-outage", databaseUrl: string) {
   return new Promise<boolean>((resolve, reject) => {
     const tsxCli = path.join(
       process.cwd(),
@@ -104,14 +124,19 @@ async function parent() {
     "outage",
     "postgresql://invalid:invalid@127.0.0.1:1/unavailable?connect_timeout=1",
   );
+  const signupOutageSanitized = await runChild(
+    "signup-outage",
+    "postgresql://invalid:invalid@127.0.0.1:1/unavailable?connect_timeout=1",
+  );
   const recovered = await runChild("recovery", validDatabaseUrl);
-  const passed = outageSanitized && recovered;
+  const passed = outageSanitized && signupOutageSanitized && recovered;
   console.log(
     JSON.stringify(
       {
         status: passed ? "PASS" : "FAIL",
         results: {
           outageErrorSanitized: outageSanitized,
+          signupOutageErrorSanitized: signupOutageSanitized,
           reconnectAfterOutage: recovered,
           elapsedMs: Date.now() - startedAt,
         },
@@ -127,6 +152,8 @@ const mode = process.argv[2];
 const operation =
   mode === "--outage"
     ? outageChild()
+    : mode === "--signup-outage"
+      ? signupOutageChild()
     : mode === "--recovery"
       ? recoveryChild()
       : parent();

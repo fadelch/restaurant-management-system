@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import AdminPageControls from "@/components/AdminPageControls";
 import { showMessage } from "@/components/MessageProvider";
+import { useConfirmDialog } from "@/components/ConfirmDialog";
 import {
   createAnnouncement,
   deleteAnnouncement,
@@ -49,6 +50,7 @@ function optionalDateTimeIso(day: string, time: string) {
 }
 
 export default function AnnouncementManager() {
+  const { confirm: askConfirmation, dialog } = useConfirmDialog();
   const [query, setQuery] = useState({
     page: 1,
     pageSize: 10,
@@ -160,7 +162,11 @@ export default function AnnouncementManager() {
   };
 
   const remove = async (item: AnnouncementItem) => {
-    if (!window.confirm(`Delete “${item.title}” permanently?`)) return;
+    const confirmed = await askConfirmation({
+      title: "Delete announcement?",
+      message: `Delete “${item.title}” permanently?`,
+    });
+    if (!confirmed) return;
     try {
       setWorking(item.id);
       await deleteAnnouncement(item.id);
@@ -181,7 +187,8 @@ export default function AnnouncementManager() {
     "w-full rounded-xl border border-white/15 bg-black/40 px-4 py-3 text-white outline-none focus:border-red-500";
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8">
+    <>
+      <div className="mx-auto max-w-7xl px-4 py-8">
       <section className="mb-6 rounded-2xl border border-red-900/50 bg-[#1a0000] p-6 shadow-2xl">
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
@@ -466,6 +473,8 @@ export default function AnnouncementManager() {
           </p>
         )}
       </section>
-    </div>
+      </div>
+      {dialog}
+    </>
   );
 }

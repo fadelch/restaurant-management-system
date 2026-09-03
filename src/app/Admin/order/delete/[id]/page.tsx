@@ -6,8 +6,10 @@ import { getOrderById } from "@/server/getOrderById";
 import { deleteOrder } from "@/server/deleteOrder";
 import { useCurrency } from "@/components/providers/CurrencyProvider";
 import { showMessage } from "@/components/MessageProvider";
+import { useConfirmDialog } from "@/components/ConfirmDialog";
 
 export default function DeleteOrderPage() {
+  const { confirm: askConfirmation, dialog } = useConfirmDialog();
   const { formatUsdWithLbp } = useCurrency();
   const router = useRouter();
   const params = useParams<{ id: string }>();
@@ -52,6 +54,13 @@ export default function DeleteOrderPage() {
   }, [id, router]);
 
   const handleDelete = async () => {
+    const confirmed = await askConfirmation({
+      title: "Cancel and archive order?",
+      message:
+        "Continue with cancelling this order and archiving it? The order history will be retained.",
+    });
+    if (!confirmed) return;
+
     try {
       setLoading(true);
 
@@ -71,7 +80,8 @@ export default function DeleteOrderPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#120000] px-6 py-10 text-white">
+    <>
+      <div className="min-h-screen bg-[#120000] px-6 py-10 text-white">
       <div className="mx-auto max-w-xl rounded-3xl border border-red-900/50 bg-[#1a0000] p-8 shadow-2xl">
         <p className="text-sm font-bold uppercase tracking-[0.3em] text-red-400">
           Admin Archive
@@ -139,6 +149,8 @@ export default function DeleteOrderPage() {
           </button>
         </div>
       </div>
-    </div>
+      </div>
+      {dialog}
+    </>
   );
 }

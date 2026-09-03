@@ -1,6 +1,5 @@
 {
   "nav": {
-    "brand": "Restaurant",
     "home": "Home",
     "menu": "Menu",
     "admin": "Admin",
@@ -39,9 +38,8 @@
     "title": "Contact Us",
     "phone": "Phone",
     "address": "Address",
-    "addressValue": "Your restaurant address here",
     "hours": "Working Hours",
-    "hoursValue": "Every day: 9:00 AM - 11:00 PM"
+    "closedDay": "Closed"
   },
   "sidebar": {
     "title": "Quick Menu",

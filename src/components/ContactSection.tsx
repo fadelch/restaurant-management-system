@@ -1,9 +1,30 @@
 "use client";
 
 import { useTranslation } from "react-i18next";
+import { useRestaurant } from "@/components/providers/RestaurantProvider";
+
+const CUSTOMER_INPUT_REQUIRED = "REQUIRES CUSTOMER INPUT";
+
+function formatDay(dayOfWeek: number, locale: string) {
+  return new Intl.DateTimeFormat(locale, {
+    weekday: "short",
+    timeZone: "UTC",
+  }).format(new Date(Date.UTC(2023, 0, 1 + dayOfWeek)));
+}
+
+function formatTime(value: string, locale: string) {
+  const [hour, minute] = value.split(":").map(Number);
+  return new Intl.DateTimeFormat(locale, {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "UTC",
+  }).format(new Date(Date.UTC(2023, 0, 1, hour, minute)));
+}
 
 export default function ContactSection() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const { identity, hours } = useRestaurant();
+  const locale = i18n.resolvedLanguage === "ar" ? "ar-LB" : "en-US";
 
   return (
     <section
@@ -24,7 +45,13 @@ export default function ContactSection() {
               {t("contact.phone")}
             </h3>
 
-            <p className="break-words text-neutral-300">+961 XX XXX XXX</p>
+            {identity.phone ? (
+              <a href={`tel:${identity.phone}`} className="break-words text-neutral-300 hover:text-red-200">
+                {identity.phone}
+              </a>
+            ) : (
+              <p className="text-sm font-bold text-amber-300">{CUSTOMER_INPUT_REQUIRED}</p>
+            )}
           </div>
 
           <div className="rounded-2xl border border-white/10 bg-black/25 p-4 sm:p-5">
@@ -32,9 +59,17 @@ export default function ContactSection() {
               {t("contact.address")}
             </h3>
 
-            <p className="break-words text-neutral-300">
-              {t("contact.addressValue")}
-            </p>
+            {identity.address ? (
+              identity.mapUrl ? (
+                <a href={identity.mapUrl} target="_blank" rel="noreferrer" className="break-words text-neutral-300 hover:text-red-200">
+                  {identity.address}
+                </a>
+              ) : (
+                <p className="break-words text-neutral-300">{identity.address}</p>
+              )
+            ) : (
+              <p className="text-sm font-bold text-amber-300">{CUSTOMER_INPUT_REQUIRED}</p>
+            )}
           </div>
 
           <div className="rounded-2xl border border-white/10 bg-black/25 p-4 sm:col-span-2 sm:p-5 lg:col-span-1">
@@ -42,10 +77,29 @@ export default function ContactSection() {
               {t("contact.hours")}
             </h3>
 
-            <p className="break-words text-neutral-300">
-              {t("contact.hoursValue")}
-            </p>
+            {hours.length === 7 ? (
+              <ul className="space-y-1 text-sm text-neutral-300">
+                {hours.map((item) => (
+                  <li key={item.dayOfWeek} className="flex justify-between gap-3">
+                    <span>{formatDay(item.dayOfWeek, locale)}</span>
+                    <span>
+                      {item.isClosed
+                        ? t("contact.closedDay")
+                        : `${formatTime(item.openTime, locale)} – ${formatTime(item.closeTime, locale)}`}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm font-bold text-amber-300">{CUSTOMER_INPUT_REQUIRED}</p>
+            )}
           </div>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2 text-sm font-bold">
+          {identity.email ? <a className="rounded-lg border border-white/15 px-3 py-2 hover:border-red-400" href={`mailto:${identity.email}`}>Email</a> : null}
+          {identity.whatsapp ? <a className="rounded-lg border border-white/15 px-3 py-2 hover:border-red-400" href={identity.whatsapp} target="_blank" rel="noreferrer">WhatsApp</a> : null}
+          {identity.instagramUrl ? <a className="rounded-lg border border-white/15 px-3 py-2 hover:border-red-400" href={identity.instagramUrl} target="_blank" rel="noreferrer">Instagram</a> : null}
+          {identity.facebookUrl ? <a className="rounded-lg border border-white/15 px-3 py-2 hover:border-red-400" href={identity.facebookUrl} target="_blank" rel="noreferrer">Facebook</a> : null}
         </div>
       </div>
     </section>

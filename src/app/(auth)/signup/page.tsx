@@ -1,11 +1,14 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { showMessage } from "@/components/MessageProvider";
+import { useRestaurant } from "@/components/providers/RestaurantProvider";
 
 export default function Page() {
+  const { identity } = useRestaurant();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setpas] = useState("");
@@ -102,8 +105,8 @@ export default function Page() {
       <div className="grid min-h-dvh grid-cols-1 overflow-x-hidden lg:grid-cols-2">
         <div className="relative hidden lg:block">
           <Image
-            src="/Logo.png"
-            alt="Logo"
+            src={identity.logoUrl}
+            alt={`${identity.name} logo`}
             fill
             sizes="50vw"
             className="h-full w-full object-cover"
@@ -242,6 +245,9 @@ export default function Page() {
               >
                 Login
               </a>
+            </p>
+            <p className="mt-3 text-center text-xs leading-5 text-gray-400">
+              Review the <Link href="/policies/terms" className="font-bold text-red-300 hover:underline">Terms</Link> and <Link href="/policies/privacy" className="font-bold text-red-300 hover:underline">Privacy Policy</Link>. Final wording requires owner/legal approval before launch.
             </p>
           </form>
         </div>

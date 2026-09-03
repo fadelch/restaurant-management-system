@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { signupUser } from "@/server/signupUser";
 import {
+  SignupInputError,
+  SignupUnavailableError,
+} from "@/lib/signupErrors";
+import {
   RateLimitExceededError,
   RateLimitUnavailableError,
 } from "@/lib/rateLimit";
@@ -32,13 +36,33 @@ export async function POST(request: Request) {
         { status: 503 },
       );
     }
-    const message =
-      error instanceof Error
-        ? error.message
-        : "Unable to create an account with these details.";
+    if (error instanceof SignupInputError) {
+      return NextResponse.json(
+        { success: false, error: error.message },
+        { status: 400 },
+      );
+    }
+    if (error instanceof SyntaxError) {
+      return NextResponse.json(
+        { success: false, error: "Invalid signup request." },
+        { status: 400 },
+      );
+    }
+    if (error instanceof SignupUnavailableError) {
+      return NextResponse.json(
+        { success: false, error: error.message },
+        { status: error.status },
+      );
+    }
+    console.error("Signup endpoint failed.", {
+      errorType: error instanceof Error ? error.constructor.name : "UnknownError",
+    });
     return NextResponse.json(
-      { success: false, error: message },
-      { status: 400 },
+      {
+        success: false,
+        error: "Unable to create an account right now. Please try again.",
+      },
+      { status: 500 },
     );
   }
 }

@@ -8,11 +8,21 @@ loadEnvConfig(process.cwd());
 const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
 const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
 const hashSecret = process.env.AUTH_SECRET;
+const requireConfigured = process.argv.includes("--require-configured");
 
 if (!redisUrl || !redisToken || !hashSecret) {
-  console.log(
-    "UPSTASH DISTRIBUTED RATE LIMIT: NOT TESTABLE (credentials are not configured).",
-  );
+  const message =
+    "UPSTASH DISTRIBUTED RATE LIMIT: NOT TESTABLE (credentials are not configured).";
+  console.log(message);
+  if (process.env.GITHUB_ACTIONS === "true") {
+    console.log(`::warning title=Upstash verification::${message}`);
+  }
+  if (requireConfigured) {
+    console.error(
+      "REQUIRED CLOUD VERIFICATION: FAIL (NOT TESTABLE is not accepted).",
+    );
+    process.exit(2);
+  }
   process.exit(0);
 }
 

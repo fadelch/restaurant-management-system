@@ -62,6 +62,46 @@ async function main() {
 
   try {
     await waitForServer(server);
+    const postJson = (path: string, body: unknown) =>
+      fetch(`${baseUrl}${path}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+    const [invalidEmail, weakPassword, passwordMismatch, emptyFields, nullBody] =
+      await Promise.all([
+        postJson("/api/auth/signup", {
+          name: "Invalid Email",
+          email: "not-an-email",
+          password,
+          confirm_password: password,
+        }),
+        postJson("/api/auth/signup", {
+          name: "Weak Password",
+          email: `weak-${suffix}@example.test`,
+          password: "weak",
+          confirm_password: "weak",
+        }),
+        postJson("/api/auth/signup", {
+          name: "Password Mismatch",
+          email: `mismatch-${suffix}@example.test`,
+          password,
+          confirm_password: `${password}!different`,
+        }),
+        postJson("/api/auth/signup", {}),
+        postJson("/api/auth/signup", null),
+      ]);
+    const malformedJson = await fetch(`${baseUrl}/api/auth/signup`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{not-json",
+    });
+    const oversized = await postJson("/api/auth/signup", {
+      name: "x".repeat(9_000),
+      email: `oversized-${suffix}@example.test`,
+      password,
+      confirm_password: password,
+    });
     const signup = await fetch(`${baseUrl}/api/auth/signup`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -89,6 +129,26 @@ async function main() {
     const cookie = sessionCookie(login);
     const sessionUser = await getUserFromAuthSessionToken(cookie);
     const created = await prisma.user.findUniqueOrThrow({ where: { email } });
+    const duplicateSignup = await postJson("/api/auth/signup", {
+      name: "Duplicate Customer",
+      email,
+      password,
+      confirm_password: password,
+    });
+    const invalidPasswordLogin = await postJson("/api/auth/login", {
+      email,
+      password: `${password}!wrong`,
+    });
+    const unknownAccountLogin = await postJson("/api/auth/login", {
+      email: `unknown-login-${suffix}@example.test`,
+      password,
+    });
+    const invalidPasswordBody = (await invalidPasswordLogin.json()) as {
+      error?: string;
+    };
+    const unknownAccountBody = (await unknownAccountLogin.json()) as {
+      error?: string;
+    };
 
     const knownRecovery = await fetch(`${baseUrl}/api/auth/forgot-password`, {
       method: "POST",
@@ -124,6 +184,14 @@ async function main() {
 
     const results = {
       normalSignup: signup.status === 201 && signupBody.success === true,
+      invalidEmailRejected: invalidEmail.status === 400,
+      weakPasswordRejected: weakPassword.status === 400,
+      passwordMismatchRejected: passwordMismatch.status === 400,
+      emptyFieldsRejected: emptyFields.status === 400,
+      nullBodyRejected: nullBody.status === 400,
+      malformedJsonRejected: malformedJson.status === 400,
+      oversizedBodyRejected: oversized.status === 413,
+      duplicateEmailRejected: duplicateSignup.status === 400,
       emailNormalized: created.email === email,
       passwordHashed: Boolean(created.password?.startsWith("$2")),
       normalLogin:
@@ -135,6 +203,10 @@ async function main() {
         loginBody.user?.isAdmin === false &&
         loginBody.user?.isSuperAdmin === false &&
         created.isAdmin === false,
+      loginFailuresIndistinguishable:
+        invalidPasswordLogin.status === 401 &&
+        unknownAccountLogin.status === 401 &&
+        invalidPasswordBody.error === unknownAccountBody.error,
       recoveryResponseDoesNotEnumerate:
         knownRecovery.status === 200 &&
         unknownRecovery.status === 200 &&

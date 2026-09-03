@@ -1,6 +1,11 @@
 import * as Sentry from "@sentry/nextjs";
 import { NextResponse } from "next/server";
-import { requireRateLimitedAdmin } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth";
+import {
+  enforceRateLimit,
+  RateLimitExceededError,
+  RateLimitUnavailableError,
+} from "@/lib/rateLimit";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -13,7 +18,34 @@ function isStagingEnvironment() {
 }
 
 export async function POST() {
-  await requireRateLimitedAdmin();
+  const user = await getCurrentUser();
+  if (!user) {
+    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  }
+  if (!user.hasAdminAccess) {
+    return NextResponse.json({ error: "Admin access required." }, { status: 403 });
+  }
+  try {
+    await enforceRateLimit({
+      policy: "admin-user",
+      identifier: user.id,
+      failurePolicy: "closed",
+    });
+  } catch (error) {
+    if (error instanceof RateLimitExceededError) {
+      return NextResponse.json(
+        { error: error.message },
+        {
+          status: 429,
+          headers: { "Retry-After": String(error.retryAfterSeconds) },
+        },
+      );
+    }
+    if (error instanceof RateLimitUnavailableError) {
+      return NextResponse.json({ error: error.message }, { status: 503 });
+    }
+    throw error;
+  }
 
   if (!isStagingEnvironment()) {
     return NextResponse.json({ error: "Not found." }, { status: 404 });
