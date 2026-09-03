@@ -14,6 +14,7 @@ export function useConfirmDialog() {
   const descriptionId = useId();
   const [options, setOptions] = useState<ConfirmDialogOptions | null>(null);
   const resolver = useRef<((answer: boolean) => void) | null>(null);
+  const cancelButton = useRef<HTMLButtonElement>(null);
   const confirm = (input: string | ConfirmDialogOptions) =>
     new Promise<boolean>((resolve) => {
       resolver.current?.(false);
@@ -28,11 +29,16 @@ export function useConfirmDialog() {
 
   useEffect(() => {
     if (!options) return;
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    cancelButton.current?.focus();
     const cancelOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") answer(false);
     };
     window.addEventListener("keydown", cancelOnEscape);
-    return () => window.removeEventListener("keydown", cancelOnEscape);
+    return () => {
+      window.removeEventListener("keydown", cancelOnEscape);
+      previouslyFocused?.focus();
+    };
   }, [options]);
 
   useEffect(
@@ -60,6 +66,7 @@ export function useConfirmDialog() {
         </p>
         <div className="mt-6 flex justify-end gap-3">
           <button
+            ref={cancelButton}
             type="button"
             onClick={() => answer(false)}
             className="cursor-pointer rounded-xl border border-white/20 px-5 py-2 font-bold text-white hover:bg-white/10"

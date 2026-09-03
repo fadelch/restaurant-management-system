@@ -60,6 +60,8 @@ async function main() {
       "valid-login",
       "admin-authenticated-refresh",
       "logout",
+      "back-after-logout",
+      "protected-route-after-logout",
       "valid-login-again",
     ];
     const pages = report.pages.filter((page: { label: string }) =>
@@ -80,6 +82,12 @@ async function main() {
     const secondLogin = byLabel.get("valid-login-again") as
       | { submitted: boolean; url: string; console: unknown[] }
       | undefined;
+    const backAfterLogout = byLabel.get("back-after-logout") as
+      | { url: string; adminContentVisible: boolean; console: unknown[] }
+      | undefined;
+    const protectedAfterLogout = byLabel.get("protected-route-after-logout") as
+      | { finalUrl: string; console: unknown[]; hasRuntimeError: boolean }
+      | undefined;
     const passed = Boolean(
       firstLogin?.submitted &&
         new URL(firstLogin.url).pathname === "/Admin" &&
@@ -88,9 +96,17 @@ async function main() {
         new URL(refresh.finalUrl).pathname === "/Admin" &&
         !refresh.hasRuntimeError &&
         refresh.console.length === 0 &&
-        logout?.clicked &&
+      logout?.clicked &&
         new URL(logout.url).pathname === "/" &&
         logout.console.length === 0 &&
+        backAfterLogout &&
+        new URL(backAfterLogout.url).pathname !== "/Admin" &&
+        !backAfterLogout.adminContentVisible &&
+        backAfterLogout.console.length === 0 &&
+        protectedAfterLogout &&
+        new URL(protectedAfterLogout.finalUrl).pathname === "/login" &&
+        !protectedAfterLogout.hasRuntimeError &&
+        protectedAfterLogout.console.length === 0 &&
         secondLogin?.submitted &&
         new URL(secondLogin.url).pathname === "/Admin" &&
         secondLogin.console.length === 0,
@@ -105,6 +121,10 @@ async function main() {
             url: page.url || page.finalUrl,
             clicked: "clicked" in page ? page.clicked : undefined,
             submitted: "submitted" in page ? page.submitted : undefined,
+            adminContentVisible:
+              "adminContentVisible" in page
+                ? page.adminContentVisible
+                : undefined,
             consoleEntries: "console" in page && Array.isArray(page.console)
               ? page.console.length
               : undefined,

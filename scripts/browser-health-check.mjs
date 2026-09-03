@@ -11,11 +11,25 @@ const loginEmail = process.env.SMOKE_LOGIN_EMAIL;
 const loginPassword = process.env.SMOKE_LOGIN_PASSWORD;
 const testAdminConfirmations =
   process.env.SMOKE_TEST_ADMIN_CONFIRMATIONS === "true";
+const testCustomerInteractions =
+  process.env.SMOKE_TEST_CUSTOMER_INTERACTIONS === "true";
 const testDeleteFoodId = process.env.SMOKE_TEST_DELETE_FOOD_ID;
 const parsedExtraRoutes = JSON.parse(process.env.SMOKE_EXTRA_ROUTES || "[]");
 const extraRoutes = Array.isArray(parsedExtraRoutes)
   ? parsedExtraRoutes
   : [parsedExtraRoutes];
+const parsedArabicRoutes = JSON.parse(
+  process.env.SMOKE_ARABIC_ROUTES || "[]",
+);
+const arabicRoutes = Array.isArray(parsedArabicRoutes)
+  ? parsedArabicRoutes
+  : [parsedArabicRoutes];
+const parsedMobileRoutes = JSON.parse(
+  process.env.SMOKE_MOBILE_ROUTES || "[]",
+);
+const mobileRoutes = Array.isArray(parsedMobileRoutes)
+  ? parsedMobileRoutes
+  : [parsedMobileRoutes];
 const sleep = (milliseconds) =>
   new Promise((resolve) => setTimeout(resolve, milliseconds));
 
@@ -517,6 +531,25 @@ try {
       networkFailures: activeCapture.networkFailures,
     });
 
+    activeCapture = { console: [], httpErrors: [], networkFailures: [] };
+    await client.send("Runtime.evaluate", { expression: "history.back()" });
+    await sleep(1_500);
+    const backAfterLogout = await client.send("Runtime.evaluate", {
+      expression: `({
+        url: location.href,
+        adminContentVisible: document.body.innerText.includes("Admin Dashboard"),
+      })`,
+      returnByValue: true,
+    });
+    pages.push({
+      label: "back-after-logout",
+      ...backAfterLogout.result.value,
+      console: activeCapture.console,
+      httpErrors: activeCapture.httpErrors,
+      networkFailures: activeCapture.networkFailures,
+    });
+    pages.push(await visit("protected-route-after-logout", "/Admin"));
+
     pages.push(await visit("login-again", "/login"));
     pages.push(await submitLogin("valid-login-again", loginEmail, loginPassword));
   } else {
@@ -536,6 +569,257 @@ try {
   for (const route of extraRoutes) {
     pages.push(await visit(`extra:${route}`, route));
   }
+
+  if (testCustomerInteractions) {
+    pages.push(await visit("customer-menu-setup", "/"));
+    activeCapture = { console: [], httpErrors: [], networkFailures: [] };
+    const initialMenu = await client.send("Runtime.evaluate", {
+      expression: `({
+        cards: document.querySelectorAll('[role="link"]').length,
+        categories: document.querySelectorAll('select')[0]?.options.length || 0,
+        availabilityOptions: document.querySelectorAll('select')[1]?.options.length || 0,
+        sortOptions: document.querySelectorAll('select')[2]?.options.length || 0,
+      })`,
+      returnByValue: true,
+    });
+    await client.send("Runtime.evaluate", {
+      expression: `(() => {
+        const input = document.querySelector('input[type="search"]');
+        if (!input) return false;
+        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set;
+        setter.call(input, "__run_7_no_match__");
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        return true;
+      })()`,
+      returnByValue: true,
+    });
+    await sleep(300);
+    const filteredMenu = await client.send("Runtime.evaluate", {
+      expression: `({
+        cards: document.querySelectorAll('[role="link"]').length,
+        noMatches: document.body.innerText.includes("No matching foods"),
+      })`,
+      returnByValue: true,
+    });
+    await client.send("Runtime.evaluate", {
+      expression: `(() => {
+        const reset = Array.from(document.querySelectorAll("button")).find(
+          (button) => button.textContent?.trim() === "Reset filters",
+        );
+        reset?.click();
+        return Boolean(reset);
+      })()`,
+      returnByValue: true,
+    });
+    await sleep(300);
+    const resetMenu = await client.send("Runtime.evaluate", {
+      expression: `document.querySelectorAll('[role="link"]').length`,
+      returnByValue: true,
+    });
+    const favoriteClicked = await client.send("Runtime.evaluate", {
+      expression: `(() => {
+        const button = Array.from(document.querySelectorAll('[role="link"] button[aria-label]')).find(
+          (item) => item.getAttribute("aria-label")?.startsWith("Add to favorites"),
+        );
+        button?.click();
+        return Boolean(button);
+      })()`,
+      returnByValue: true,
+    });
+    await sleep(3_000);
+    const favoriteAdded = await client.send("Runtime.evaluate", {
+      expression: `Boolean(Array.from(document.querySelectorAll('[role="link"] button[aria-label]')).find(
+        (item) => item.getAttribute("aria-label")?.startsWith("Remove from favorites"),
+      ))`,
+      returnByValue: true,
+    });
+    pages.push(await visit("customer-favorite-refresh", "/"));
+    const favoritePersisted = await client.send("Runtime.evaluate", {
+      expression: `Boolean(Array.from(document.querySelectorAll('[role="link"] button[aria-label]')).find(
+        (item) => item.getAttribute("aria-label")?.startsWith("Remove from favorites"),
+      ))`,
+      returnByValue: true,
+    });
+    await client.send("Runtime.evaluate", {
+      expression: `(() => {
+        const button = Array.from(document.querySelectorAll('[role="link"] button[aria-label]')).find(
+          (item) => item.getAttribute("aria-label")?.startsWith("Remove from favorites"),
+        );
+        button?.click();
+        return Boolean(button);
+      })()`,
+      returnByValue: true,
+    });
+    await sleep(3_000);
+    const favoriteRemoved = await client.send("Runtime.evaluate", {
+      expression: `!Array.from(document.querySelectorAll('[role="link"] button[aria-label]')).some(
+        (item) => item.getAttribute("aria-label")?.startsWith("Remove from favorites"),
+      )`,
+      returnByValue: true,
+    });
+    const addClicked = await client.send("Runtime.evaluate", {
+      expression: `(() => {
+        const button = Array.from(document.querySelectorAll('[role="link"] button')).find(
+          (item) => item.textContent?.trim() === "Add to Cart" && !item.disabled,
+        );
+        button?.click();
+        return Boolean(button);
+      })()`,
+      returnByValue: true,
+    });
+    await sleep(3_000);
+    const cartAdded = await client.send("Runtime.evaluate", {
+      expression: `(() => {
+        const items = JSON.parse(localStorage.getItem("cartItems") || "[]");
+        return { rows: items.length, quantity: items.reduce((sum, item) => sum + item.cartQty, 0) };
+      })()`,
+      returnByValue: true,
+    });
+    pages.push(await visit("customer-cart-interaction", "/cart"));
+    const cartBefore = await client.send("Runtime.evaluate", {
+      expression: `({
+        hasItem: Boolean(document.querySelector('section[aria-label="Cart items"] article')),
+        hasCheckout: document.body.innerText.includes("Continue to checkout"),
+      })`,
+      returnByValue: true,
+    });
+    await client.send("Runtime.evaluate", {
+      expression: `document.querySelector('button[aria-label^="Increase "]')?.click()`,
+    });
+    await sleep(250);
+    const quantityAfterIncrease = await client.send("Runtime.evaluate", {
+      expression: `JSON.parse(localStorage.getItem("cartItems") || "[]")[0]?.cartQty || 0`,
+      returnByValue: true,
+    });
+    await client.send("Runtime.evaluate", {
+      expression: `document.querySelector('button[aria-label^="Decrease "]')?.click()`,
+    });
+    await sleep(250);
+    pages.push(await visit("customer-cart-refresh", "/cart"));
+    const cartPersisted = await client.send("Runtime.evaluate", {
+      expression: `Boolean(document.querySelector('section[aria-label="Cart items"] article'))`,
+      returnByValue: true,
+    });
+    await client.send("Runtime.evaluate", {
+      expression: `(() => {
+        const button = Array.from(document.querySelectorAll("button")).find(
+          (item) => item.textContent?.trim() === "Continue to checkout",
+        );
+        button?.click();
+        return Boolean(button);
+      })()`,
+      returnByValue: true,
+    });
+    await sleep(3_000);
+    const checkout = await client.send("Runtime.evaluate", {
+      expression: `(() => {
+        const dialog = document.querySelector('[role="dialog"]');
+        const submit = dialog?.querySelector('button[type="submit"]');
+        const close = dialog?.querySelector('button[aria-label="Close checkout"]');
+        const result = {
+          opened: Boolean(dialog),
+          focusInside: Boolean(dialog?.contains(document.activeElement)),
+          submitDisabled: Boolean(submit?.disabled),
+          safeUnavailableMessage: Boolean(
+            dialog?.textContent?.includes("Ordering is unavailable until the restaurant completes"),
+          ),
+          closeAvailable: Boolean(close),
+        };
+        close?.click();
+        return result;
+      })()`,
+      returnByValue: true,
+    });
+    await sleep(250);
+    await client.send("Runtime.evaluate", {
+      expression: `(() => {
+        const button = Array.from(document.querySelectorAll("button")).find(
+          (item) => item.textContent?.trim() === "Remove",
+        );
+        button?.click();
+        return Boolean(button);
+      })()`,
+      returnByValue: true,
+    });
+    await sleep(250);
+    const cartRemoved = await client.send("Runtime.evaluate", {
+      expression: `document.body.innerText.includes("Your cart is empty")`,
+      returnByValue: true,
+    });
+    pages.push({
+      label: "customer-menu-cart-favorites",
+      initialMenu: initialMenu.result.value,
+      filteredMenu: filteredMenu.result.value,
+      resetCards: resetMenu.result.value,
+      favoriteClicked: favoriteClicked.result.value,
+      favoriteAdded: favoriteAdded.result.value,
+      favoritePersisted: favoritePersisted.result.value,
+      favoriteRemoved: favoriteRemoved.result.value,
+      addClicked: addClicked.result.value,
+      cartAdded: cartAdded.result.value,
+      cartBefore: cartBefore.result.value,
+      quantityAfterIncrease: quantityAfterIncrease.result.value,
+      cartPersisted: cartPersisted.result.value,
+      checkout: checkout.result.value,
+      cartRemoved: cartRemoved.result.value,
+      console: activeCapture.console,
+      httpErrors: activeCapture.httpErrors,
+      networkFailures: activeCapture.networkFailures,
+    });
+
+    pages.push(await visit("customer-food-detail-setup", "/"));
+    activeCapture = { console: [], httpErrors: [], networkFailures: [] };
+    const detailClicked = await client.send("Runtime.evaluate", {
+      expression: `(() => {
+        const card = document.querySelector('[role="link"]');
+        card?.click();
+        return Boolean(card);
+      })()`,
+      returnByValue: true,
+    });
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      const pathname = await client.send("Runtime.evaluate", {
+        expression: "location.pathname",
+        returnByValue: true,
+      });
+      if (pathname.result.value.startsWith("/food/")) break;
+      await sleep(100);
+    }
+    await sleep(500);
+    const detailState = await client.send("Runtime.evaluate", {
+      expression: `({
+        path: location.pathname,
+        heading: document.querySelector("h1")?.textContent?.trim() || null,
+        ingredients: document.body.innerText.includes("Choose your ingredients"),
+        optionalIngredients: document.body.innerText.includes("Optional ingredients"),
+        hasAddButton: Array.from(document.querySelectorAll("button")).some(
+          (button) => button.textContent?.trim().startsWith("Add to Cart"),
+        ),
+        horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth,
+        brokenImages: Array.from(document.images).filter(
+          (image) => image.complete && image.naturalWidth === 0,
+        ).length,
+      })`,
+      returnByValue: true,
+    });
+    pages.push({
+      label: "customer-food-detail",
+      detailClicked: detailClicked.result.value,
+      ...detailState.result.value,
+      console: activeCapture.console,
+      httpErrors: activeCapture.httpErrors,
+      networkFailures: activeCapture.networkFailures,
+    });
+  }
+  await client.send("Runtime.evaluate", {
+    expression: `localStorage.setItem("restaurantLanguage", "ar")`,
+  });
+  for (const route of arabicRoutes) {
+    pages.push(await visit(`arabic:${route}`, route));
+  }
+  await client.send("Runtime.evaluate", {
+    expression: `localStorage.setItem("restaurantLanguage", "en")`,
+  });
 
   if (testAdminConfirmations) {
     await visit("confirmation-setup", "/Admin");
@@ -573,6 +857,7 @@ try {
         cancel?.click();
         return {
           dialogOpened: Boolean(dialog),
+          focusInside: Boolean(dialog?.contains(document.activeElement)),
           title: dialog?.querySelector("h2")?.textContent?.trim() || null,
           buttons,
           cancelClicked: Boolean(cancel),
@@ -632,9 +917,11 @@ try {
               (button) => button.textContent?.trim() === "Yes",
             )
           : null;
+        const focusInside = Boolean(dialog?.contains(document.activeElement));
         yes?.click();
         return {
           dialogOpened: Boolean(dialog),
+          focusInside,
           title: dialog?.querySelector("h2")?.textContent?.trim() || null,
           buttons,
           yesClicked: Boolean(yes),
@@ -672,6 +959,9 @@ try {
     mobile: true,
   });
   pages.push(await visit("home-mobile-en", "/"));
+  for (const route of mobileRoutes) {
+    pages.push(await visit(`mobile:${route}`, route));
+  }
 
   const routes = [
     "/",

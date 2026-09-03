@@ -26,6 +26,7 @@
     "check:launch-config:required": "tsx --conditions=react-server scripts/check-launch-config.ts --require-configured",
     "test:admin-browser": "tsx --conditions=react-server scripts/admin-browser-health-test.ts",
     "test:admin-login-browser": "tsx --conditions=react-server scripts/admin-login-browser-test.ts",
+    "test:customer-browser": "tsx --conditions=react-server scripts/customer-browser-regression-test.ts",
     "test:database-outage": "tsx scripts/database-outage-probe.ts",
     "test": "tsx --test src/**/*.test.ts",
     "verify": "node scripts/verify-release.mjs",

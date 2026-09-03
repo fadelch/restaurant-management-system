@@ -14,7 +14,8 @@ export default function Footer() {
       <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6">
         <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
           <p className="text-center text-sm font-semibold text-gray-400 sm:text-base">
-            © {new Date().getFullYear()} {identity.name}. {t("footer")}
+            © {new Date().getFullYear()} {identity.name}. {t("footer")} Made by
+            Fadel Chaaban.
           </p>
 
           <Image

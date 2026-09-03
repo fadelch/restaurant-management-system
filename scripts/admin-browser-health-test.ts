@@ -6,6 +6,7 @@ import { spawn } from "node:child_process";
 loadEnvConfig(process.cwd());
 
 const baseUrl = (process.argv[2] || "http://localhost:3100").replace(/\/$/, "");
+const testMutations = process.env.ADMIN_BROWSER_TEST_MUTATIONS !== "false";
 const adminRoutes = [
   "/Admin",
   "/Admin/analytics",
@@ -36,7 +37,12 @@ function sessionToken(userId: string) {
   return `${encoded}.${signature}`;
 }
 
-function runBrowserProbe(token: string, email: string, deleteFoodId: string) {
+function runBrowserProbe(
+  token: string,
+  email: string,
+  deleteFoodId: string,
+  extraRoutes: string[],
+) {
   return new Promise<string>((resolve, reject) => {
     const child = spawn(
       process.execPath,
@@ -47,9 +53,13 @@ function runBrowserProbe(token: string, email: string, deleteFoodId: string) {
           ...process.env,
           SMOKE_SESSION_COOKIE: token,
           SMOKE_USER_EMAIL: email,
-          SMOKE_EXTRA_ROUTES: JSON.stringify(adminRoutes),
-          SMOKE_TEST_ADMIN_CONFIRMATIONS: "true",
-          SMOKE_TEST_DELETE_FOOD_ID: deleteFoodId,
+          SMOKE_EXTRA_ROUTES: JSON.stringify(extraRoutes),
+          SMOKE_ARABIC_ROUTES: JSON.stringify(adminRoutes),
+          SMOKE_MOBILE_ROUTES: JSON.stringify(adminRoutes),
+          SMOKE_TEST_ADMIN_CONFIRMATIONS: String(testMutations),
+          ...(testMutations
+            ? { SMOKE_TEST_DELETE_FOOD_ID: deleteFoodId }
+            : {}),
         },
         stdio: ["ignore", "pipe", "pipe"],
         windowsHide: true,
@@ -146,11 +156,31 @@ async function main() {
     });
 
     const report = JSON.parse(
-      await runBrowserProbe(sessionToken(admin.id), email, deletableFoodId),
+      await runBrowserProbe(
+        sessionToken(admin.id),
+        email,
+        deletableFoodId,
+        [
+          ...adminRoutes,
+          "/Admin/food/insert",
+          `/Admin/food/update/${foodId}`,
+          `/Admin/food/delete/${foodId}`,
+          "/Admin/foodtype/insert",
+          `/Admin/foodtype/update/${foodTypeId}`,
+          `/Admin/foodtype/delete/${foodTypeId}`,
+          "/Admin/order/insert",
+          `/Admin/order/update/${orderId}`,
+          `/Admin/order/delete/${orderId}`,
+          "/Admin/order-items/insert",
+        ],
+      ),
     );
     const testedPages = report.pages.filter(
       (page: { label: string }) =>
-        page.label === "admin-unauthenticated" || page.label.startsWith("extra:/Admin"),
+        page.label === "admin-unauthenticated" ||
+        page.label.startsWith("extra:/Admin") ||
+        page.label.startsWith("arabic:/Admin") ||
+        page.label.startsWith("mobile:/Admin"),
     );
     const consoleEntries = testedPages.flatMap(
       (page: { label: string; console?: unknown[] }) =>
@@ -176,13 +206,21 @@ async function main() {
         (page: {
           label: string;
           finalUrl: string;
+          lang: string;
+          dir: string;
           hasRuntimeError: boolean;
+          horizontalOverflow: boolean;
           brokenImages: unknown[];
+          metrics: unknown;
         }) => ({
           label: page.label,
           finalUrl: page.finalUrl,
+          lang: page.lang,
+          dir: page.dir,
           hasRuntimeError: page.hasRuntimeError,
+          horizontalOverflow: page.horizontalOverflow,
           brokenImages: page.brokenImages.length,
+          metrics: page.metrics,
         }),
       ),
       consoleEntries,
@@ -199,6 +237,7 @@ async function main() {
         ? {
             buttonClicked: confirmation.buttonClicked,
             dialogOpened: confirmation.dialogOpened,
+            focusInside: confirmation.focusInside,
             title: confirmation.title,
             buttons: confirmation.buttons,
             cancelClicked: confirmation.cancelClicked,
@@ -210,6 +249,7 @@ async function main() {
         ? {
             deleteClicked: deleteConfirmation.deleteClicked,
             dialogOpened: deleteConfirmation.dialogOpened,
+            focusInside: deleteConfirmation.focusInside,
             title: deleteConfirmation.title,
             buttons: deleteConfirmation.buttons,
             yesClicked: deleteConfirmation.yesClicked,
@@ -219,32 +259,43 @@ async function main() {
         : null,
     };
     const passed =
-      testedPages.length === adminRoutes.length + 1 &&
+      testedPages.length === adminRoutes.length * 3 + 11 &&
       testedPages.every(
         (page: {
+          label: string;
           finalUrl: string;
+          lang: string;
+          dir: string;
           hasRuntimeError: boolean;
+          horizontalOverflow: boolean;
           brokenImages: unknown[];
         }) =>
           new URL(page.finalUrl).pathname.startsWith("/Admin") &&
+          (page.label.startsWith("arabic:")
+            ? page.lang === "ar" && page.dir === "rtl"
+            : page.lang === "en" && page.dir === "ltr") &&
           !page.hasRuntimeError &&
+          !page.horizontalOverflow &&
           page.brokenImages.length === 0,
       ) &&
       consoleEntries.length === 0 &&
-      confirmation?.buttonClicked === true &&
-      confirmation.dialogOpened === true &&
-      confirmation.buttons?.includes("Yes") &&
-      confirmation.buttons?.includes("Cancel") &&
-      confirmation.cancelClicked === true &&
-      confirmation.dialogClosed === true &&
-      testOrder.adminArchivedAt === null &&
-      deleteConfirmation?.deleteClicked === true &&
-      deleteConfirmation.dialogOpened === true &&
-      deleteConfirmation.buttons?.includes("Yes") &&
-      deleteConfirmation.buttons?.includes("Cancel") &&
-      deleteConfirmation.yesClicked === true &&
-      deleteConfirmation.returnedToAdmin === true &&
-      deletedFoodCount === 0;
+      (!testMutations ||
+        (confirmation?.buttonClicked === true &&
+          confirmation.dialogOpened === true &&
+          confirmation.focusInside === true &&
+          confirmation.buttons?.includes("Yes") &&
+          confirmation.buttons?.includes("Cancel") &&
+          confirmation.cancelClicked === true &&
+          confirmation.dialogClosed === true &&
+          testOrder.adminArchivedAt === null &&
+          deleteConfirmation?.deleteClicked === true &&
+          deleteConfirmation.dialogOpened === true &&
+          deleteConfirmation.focusInside === true &&
+          deleteConfirmation.buttons?.includes("Yes") &&
+          deleteConfirmation.buttons?.includes("Cancel") &&
+          deleteConfirmation.yesClicked === true &&
+          deleteConfirmation.returnedToAdmin === true &&
+          deletedFoodCount === 0));
 
     console.log(JSON.stringify({ status: passed ? "PASS" : "FAIL", ...result }, null, 2));
     if (!passed) process.exitCode = 1;

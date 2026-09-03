@@ -38,6 +38,7 @@ export default function CartCheckoutDialog({
     fingerprint: string;
     requestId: string;
   } | null>(null);
+  const closeButton = useRef<HTMLButtonElement>(null);
   const selectedZone = settings?.zones.find(
     (zone) => zone.id === deliveryZoneId,
   );
@@ -72,8 +73,10 @@ export default function CartCheckoutDialog({
 
   useEffect(() => {
     if (!open) return;
+    const previouslyFocused = document.activeElement as HTMLElement | null;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    closeButton.current?.focus();
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape" && !purchasing) onClose();
     };
@@ -81,6 +84,7 @@ export default function CartCheckoutDialog({
     return () => {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", closeOnEscape);
+      previouslyFocused?.focus();
     };
   }, [onClose, open, purchasing]);
 
@@ -197,6 +201,7 @@ export default function CartCheckoutDialog({
             </h2>
           </div>
           <button
+            ref={closeButton}
             type="button"
             onClick={onClose}
             disabled={purchasing}
